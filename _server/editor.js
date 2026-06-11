@@ -54,9 +54,10 @@ function editor() {
         lastUsedDiv: document.getElementById('lastUsedDiv'),
         lastUsed: document.getElementById('lastUsed'),
         lastUsedCtx: document.getElementById('lastUsed').getContext('2d'),
-        lockMode: document.getElementById('lockMode'),
+        showMovable: document.getElementById('showMovable'),
         gameInject: document.getElementById('gameInject'),
         undoFloor: document.getElementById('undoFloor'),
+        selectFloorBtn: document.getElementById('selectFloorBtn'),
         editorTheme: document.getElementById('editorTheme'),
         bigmapBtn : document.getElementById('bigmapBtn'),
         mapRowMark: document.getElementById('mapRowMark'),
@@ -118,6 +119,8 @@ function editor() {
 
         // tile
         lockMode: false,
+        
+        showMovable: false,
 
         // 最近使用的图块
         lastUsedType: null,
@@ -204,6 +207,7 @@ editor.prototype.init = function (callback) {
                 editor_file_wrapper(editor);
                 editor_table_wrapper(editor);
                 editor_ui_wrapper(editor);
+                editor_uievent_wrapper(editor);
                 editor_mappanel_wrapper(editor);
                 editor_datapanel_wrapper(editor);
                 editor_materialpanel_wrapper(editor);
@@ -266,15 +270,14 @@ editor.prototype.init = function (callback) {
         
                 // --- 所有用到的flags
                 editor.used_flags = {};
+                editor.addUsedFlags(JSON.stringify(data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d));
                 // 楼层属性
                 for (var floorId in editor.main.floors) {
                     editor.addUsedFlags(JSON.stringify(editor.main.floors[floorId]));
                 }
                 // 公共事件
-                if (events_c12a15a8_c380_4b28_8144_256cba95f760.commonEvent) {
-                    for (var name in events_c12a15a8_c380_4b28_8144_256cba95f760.commonEvent) {
-                        editor.addUsedFlags(JSON.stringify(events_c12a15a8_c380_4b28_8144_256cba95f760.commonEvent[name]));
-                    }
+                for (var name in events_c12a15a8_c380_4b28_8144_256cba95f760.commonEvent) {
+                    editor.addUsedFlags(JSON.stringify(events_c12a15a8_c380_4b28_8144_256cba95f760.commonEvent[name]));
                 }
                 // 道具效果
                 for (var id in items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a) {
@@ -282,6 +285,14 @@ editor.prototype.init = function (callback) {
                 }
                 // 全局商店
                 editor.addUsedFlags(JSON.stringify(editor.main.core.firstData.shops));
+                // 怪物战前战后
+                for (var id in enemys_fcae963b_31c9_42b4_b48c_bb48d09f3f80) {
+                    editor.addUsedFlags(JSON.stringify(enemys_fcae963b_31c9_42b4_b48c_bb48d09f3f80[id]));
+                }
+                // 图块属性
+                for (var id in maps_90f36752_8815_4be8_b32b_d7fad1d0542e) {
+                    editor.addUsedFlags(JSON.stringify(maps_90f36752_8815_4be8_b32b_d7fad1d0542e[id]));
+                }
         
                 if (editor.useCompress == null) editor.useCompress = useCompress;
                 if (Boolean(callback)) callback();
@@ -324,7 +335,9 @@ editor.prototype.mapInit = function () {
     editor.currentFloorData.firstArrive = [];
     editor.currentFloorData.eachArrive = [];
     editor.currentFloorData.events = {};
+    editor.currentFloorData.autoEvent = {};
     editor.currentFloorData.changeFloor = {};
+    editor.currentFloorData.beforeBattle = {};
     editor.currentFloorData.afterBattle = {};
     editor.currentFloorData.afterGetItem = {};
     editor.currentFloorData.afterOpenDoor = {};
@@ -360,10 +373,8 @@ editor.prototype.changeFloor = function (floorId, callback) {
     var loc = editor.viewportLoc[floorId] || [], x = loc[0] || 0, y = loc[1] || 0;
     editor.setViewport(x, y);
     editor.uifunctions.unhighlightSaveFloorButton();
-
-    editor.config.set('editorLastFloorId', floorId, function() {
-        if (callback) callback();
-    });
+    editor.config.set('editorLastFloorId', floorId);
+    if (callback) callback();
 }
 
 /////////// 游戏绘图相关 ///////////
@@ -375,9 +386,61 @@ editor.prototype.drawEventBlock = function () {
     if (editor.uivalues.bigmap) return this._drawEventBlock_bigmap();
 
     var firstData = editor.game.getFirstData();
+    // 不可通行性
+    var movableArray = {};
+    if (editor.uivalues.showMovable) {
+        movableArray = core.generateMovableArray() || {};
+        fg.fillStyle = "rgba(0,0,0,0.4)";
+        fg.fillRect(0, 0, core.__PIXELS__, core.__PIXELS__);
+        for (var i=0;i<core.__SIZE__;i++) {
+            for (var j=0;j<core.__SIZE__;j++) {
+                var x = i+core.bigmap.offsetX/32, y = j+core.bigmap.offsetY/32;
+                var directions = (movableArray[x]||{})[y];
+                if (directions == null) continue;
+                if (!directions.includes('left') && x != 0) {
+                    var ndirections = (movableArray[x-1]||{})[y];
+                    if (ndirections != null && !ndirections.includes('right')) {
+                        core.drawLine(fg, 32 * i + 1, 32 * j + 6, 32 * i + 1, 32 * j + 26, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, 32 * i + 1, 32 * j + 10, 32 * i + 1, 32 * j + 22, '#FF0000', 2);
+                        core.fillPolygon(fg, [[32 * i + 9, 32 * j + 12], [32 * i + 1, 32 * j + 16], [32 * i + 9, 32 * j + 20]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('right') && x != editor.currentFloorData.width - 1) {
+                    var ndirections = (movableArray[x+1]||{})[y];
+                    if (ndirections != null && !ndirections.includes('left')) {
+                        core.drawLine(fg, 32 * i + 31, 32 * j + 6, 32 * i + 31, 32 * j + 26, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, 32 * i + 31, 32 * j + 10, 32 * i + 31, 32 * j + 22, '#FF0000', 2);
+                        core.fillPolygon(fg, [[32 * i + 23, 32 * j + 12], [32 * i + 31, 32 * j + 16], [32 * i + 23, 32 * j + 20]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('up') && y != 0) {
+                    var ndirections = movableArray[x][y-1];
+                    if (ndirections != null && !ndirections.includes('down')) {
+                        core.drawLine(fg, 32 * i + 6, 32 * j + 1, 32 * i + 26, 32 * j + 1, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, 32 * i + 10, 32 * j + 1, 32 * i + 22, 32 * j + 1, '#FF0000', 2);
+                        core.fillPolygon(fg, [[32 * i + 12, 32 * j + 9], [32 * i + 16, 32 * j + 1], [32 * i + 20, 32 * j + 9]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('down') && y != editor.currentFloorData.height - 1) {
+                    var ndirections = movableArray[x][y+1];
+                    if (ndirections != null && !ndirections.includes('up')) {
+                        core.drawLine(fg, 32 * i + 6, 32 * j + 31, 32 * i + 26, 32 * j + 31, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, 32 * i + 10, 32 * j + 31, 32 * i + 22, 32 * j + 31, '#FF0000', 2);
+                        core.fillPolygon(fg, [[32 * i + 12, 32 * j + 23], [32 * i + 16, 32 * j + 31], [32 * i + 20, 32 * j + 23]], '#FF0000');
+                    }
+                }
+            }
+        }
+        return;
+    }
     for (var i=0;i<core.__SIZE__;i++) {
         for (var j=0;j<core.__SIZE__;j++) {
-            var loc=(i+core.bigmap.offsetX/32)+","+(j+core.bigmap.offsetY/32);
+            var x = i+core.bigmap.offsetX/32, y = j+core.bigmap.offsetY/32;
+            var loc= x + ',' + y;
             if (editor.currentFloorId == firstData.floorId
                 && loc == firstData.hero.loc.x + "," + firstData.hero.loc.y) {
                 fg.textAlign = 'center';
@@ -395,6 +458,22 @@ editor.prototype.drawEventBlock = function () {
                 editor.game.doCoreFunc("fillBoldText", fg, index + 1,
                     32 * i + 28, 32 * j + 15, '#FF7F00', null, '14px Verdana');
             }
+            var offset = 0;
+            if (editor.currentFloorData.upFloor && editor.currentFloorData.upFloor.toString() == loc) {
+                fg.textAlign = 'left';
+                editor.game.doCoreFunc("fillText", fg, "🔼", 32 * i + offset, 32 * j + 8, null, "8px Verdana");
+                offset += 8;
+            }
+            if (editor.currentFloorData.downFloor && editor.currentFloorData.downFloor.toString() == loc) {
+                fg.textAlign = 'left';
+                editor.game.doCoreFunc("fillText", fg, "🔽", 32 * i + offset, 32 * j + 8, null, "8px Verdana");
+                offset += 8;
+            }
+            if (editor.currentFloorData.flyPoint && editor.currentFloorData.flyPoint.toString() == loc) {
+                fg.textAlign = 'left';
+                editor.game.doCoreFunc("fillText", fg, "🔃", 32 * i + offset, 32 * j + 8, null, "8px Verdana");
+                offset += 8;
+            }
         }
     }
 }
@@ -402,6 +481,65 @@ editor.prototype.drawEventBlock = function () {
 editor.prototype._drawEventBlock_bigmap = function () {
     var fg=editor.dom.efgCtx;
     var info = editor.uivalues.bigmapInfo, size = info.size, psize = size / 4;
+    
+    // 不可通行性
+    var movableArray = {};
+    if (editor.uivalues.showMovable) {
+        movableArray = core.generateMovableArray() || {};
+        fg.fillStyle = "rgba(0,0,0,0.4)";
+        fg.fillRect(0, 0, core.__PIXELS__, core.__PIXELS__);
+        for (var i = 0; i < editor.currentFloorData.width; ++i) {
+            for (var j = 0; j < editor.currentFloorData.height; ++j) {
+                var directions = (movableArray[i]||{})[j];
+                if (directions == null) continue;
+                if (!directions.includes('left') && i != 0) {
+                    var ndirections = (movableArray[i-1]||{})[j];
+                    if (ndirections != null && !ndirections.includes('right')) {
+                        core.drawLine(fg, info.left + size * i, info.top + size * j + size / 4, info.left + size * i, info.top + size * j + size * 3 / 4, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, info.left + size * i, info.top + size * j + size / 3, info.left + size * i, info.top + size * j + size * 2 / 3, '#FF0000', 2);
+                        core.fillPolygon(fg, [[info.left + size * i + size / 4, info.top + size * j + size * 3 / 8], 
+                                            [info.left + size * i, info.top + size * j + size / 2], 
+                                            [info.left + size * i + size / 4, info.top + size * j + size * 5 / 8]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('right') && i != editor.currentFloorData.width - 1) {
+                    var ndirections = (movableArray[i+1]||{})[j];
+                    if (ndirections != null && !ndirections.includes('left')) {
+                        core.drawLine(fg, info.left + size * i + size, info.top + size * j + size / 4, info.left + size * i + size, info.top + size * j + size * 3 / 4, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, info.left + size * i + size, info.top + size * j + size / 3, info.left + size * i + size, info.top + size * j + size * 2 / 3, '#FF0000', 2);
+                        core.fillPolygon(fg, [[info.left + size * i + size * 3 / 4, info.top + size * j + size * 3 / 8], 
+                            [info.left + size * i + size, info.top + size * j + size / 2], 
+                            [info.left + size * i + size * 3 / 4, info.top + size * j + size * 5 / 8]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('up') && j != 0) {
+                    var ndirections = movableArray[i][j-1];
+                    if (ndirections != null && !ndirections.includes('down')) {
+                        core.drawLine(fg, info.left + size * i + size / 4, info.top + size * j, info.left + size * i + size * 3 / 4, info.top + size * j, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, info.left + size * i + size / 3, info.top + size * j, info.left + size * i + size * 2 / 3, info.top + size * j, '#FF0000', 2);
+                        core.fillPolygon(fg, [[info.left + size * i + size * 3 / 8, info.top + size * j + size / 4], 
+                            [info.left + size * i + size / 2, info.top + size * j], 
+                            [info.left + size * i + size * 5 / 8, info.top + size * j + size / 4]], '#FF0000');
+                    }
+                }
+                if (!directions.includes('down') && j != editor.currentFloorData.height - 1) {
+                    var ndirections = movableArray[i][j+1];
+                    if (ndirections != null && !ndirections.includes('up')) {
+                        core.drawLine(fg, info.left + size * i + size / 4, info.top + size * j + size, info.left + size * i + size * 3 / 4, info.top + size * j + size, '#FF0000', 2);
+                    } else {
+                        core.drawLine(fg, info.left + size * i + size / 3, info.top + size * j + size, info.left + size * i + size * 2 / 3, info.top + size * j + size, '#FF0000', 2);
+                        core.fillPolygon(fg, [[info.left + size * i + size * 3 / 8, info.top + size * j + size  * 3 / 4], 
+                            [info.left + size * i + size / 2, info.top + size * j + size], 
+                            [info.left + size * i + size * 5 / 8, info.top + size * j + size * 3 / 4]], '#FF0000');
+                    }
+                }
+            }
+        }
+        return;
+    }
 
     for (var i = 0; i < editor.currentFloorData.width; ++i) {
         for (var j = 0; j < editor.currentFloorData.height; ++j) {
@@ -427,14 +565,14 @@ editor.prototype._drawEventBlock_getColor = function (loc) {
             }
         }
     }
+    if (editor.currentFloorData.beforeBattle[loc])
+        color.push('#0000FF');
     if (editor.currentFloorData.afterBattle[loc])
         color.push('#FFFF00');
     if (editor.currentFloorData.changeFloor[loc])
         color.push('#00FF00');
     if (editor.currentFloorData.afterGetItem[loc])
         color.push('#00FFFF');
-    if (editor.currentFloorData.cannotMove[loc] && editor.currentFloorData.cannotMove[loc].length > 0)
-        color.push('#0000FF');
     if (editor.currentFloorData.afterOpenDoor[loc])
         color.push('#FF00FF');
     return color;
@@ -466,6 +604,7 @@ editor.prototype._updateMap_bigmap = function () {
     editor.uivalues.bigmapInfo.left = core.__PIXELS__ * Math.max(0, (1 - width / height) / 2);
     editor.uivalues.bigmapInfo.size = core.__PIXELS__ / Math.max(width, height);
     this.drawEventBlock();
+    this.updateLastUsedMap();
 }
 
 editor.prototype.updateMap = function () {
@@ -611,15 +750,39 @@ editor.prototype.drawInitData = function (icons) {
     editor.uivalues.foldPerCol = editor.config.get('foldPerCol', 50);
     // var imgNames = Object.keys(images);  //还是固定顺序吧；
     editor.setLastUsedType(editor.config.get('lastUsedType', 'recent'));
-    editor.uivalues.lastUsed = editor.config.get("lastUsed", []);
+    var ids = editor.ids.map(function (x) {return x.id || "";});
+    editor.uivalues.lastUsed = editor.config.get("lastUsed", []).filter(function (one) {
+        return ids.indexOf(one.id) >= 0;
+    });
     var imgNames = ["terrains", "animates", "enemys", "enemy48", "items", "npcs", "npc48", "autotile"];
+
+    var splitCanvas = document.createElement('canvas');
+    var splitCtx = splitCanvas.getContext('2d');
+    splitCtx.imageSmoothingEnabled = false;
+
+    var splitImage = function (image, width, height) {
+        if (image.width == width && image.height == height) {
+            return [image];
+        }
+        var ans = [];
+        for (var j = 0; j < image.height; j += h) {
+            var h = Math.min(height, image.height - j);
+            splitCanvas.width = width;
+            splitCanvas.height = h;
+            core.drawImage(splitCtx, image, 0, j, width, h, 0, 0, width, h);
+            var data = new Image();
+            data.src = splitCanvas.toDataURL("image/png");
+            ans.push(data);
+        }
+        return ans;
+    }
 
     for (var ii = 0; ii < imgNames.length; ii++) {
         var img = imgNames[ii], tempy = 0;
         if (img == 'autotile') {
             var autotiles = images[img];
             for (var im in autotiles) {
-                tempy += autotiles[im].height;
+                tempy += editor.uivalues.folded ? 32 : autotiles[im].height;
             }
             var tempx = editor.uivalues.folded ? 32 : 3 * 32;
             editor.widthsX[img] = [img, sumWidth / 32, (sumWidth + tempx) / 32, tempy];
@@ -629,9 +792,14 @@ editor.prototype.drawInitData = function (icons) {
         }
         var width = images[img].width, height = images[img].height, mh = height;
         if (editor.uivalues.folded) {
-            var per_height = (img == 'enemy48' || img == 'npc48' ? 48 : 32);
-            width = Math.ceil(height / per_height / editor.uivalues.foldPerCol) * 32;
-            if (width > 32) mh = per_height * editor.uivalues.foldPerCol;
+            if (img == 'terrains') {
+                width = Math.ceil((height / 32 + 2) / editor.uivalues.foldPerCol) * 32;
+                if (width > 32) mh = 32 * editor.uivalues.foldPerCol;
+            } else {
+                var per_height = (img == 'enemy48' || img == 'npc48' ? 48 : 32);
+                width = Math.ceil(height / per_height / editor.uivalues.foldPerCol) * 32;
+                if (width > 32) mh = per_height * editor.uivalues.foldPerCol;
+            }
         }
         editor.widthsX[img] = [img, sumWidth / 32, (sumWidth + width) / 32, height];
         sumWidth += width;
@@ -712,10 +880,13 @@ editor.prototype.drawInitData = function (icons) {
             })(editor.airwallImg,nowx);
             if (editor.uivalues.folded) {
                 // --- 单列 & 折行
-                var subimgs = core.splitImage(images[img], 32, editor.uivalues.foldPerCol * 32);
-                var frames = images[img].width / 32;
-                for (var i = 0; i < subimgs.length; i+=frames) {
-                    drawImage(subimgs[i], nowx, i==0?2*32:0, img);
+                var canvas = document.createElement("canvas");
+                canvas.width = 32;
+                canvas.height = images[img].height + 64;
+                canvas.getContext('2d').drawImage(images[img], 0, 64);
+                var subimgs = splitImage(canvas, 32, editor.uivalues.foldPerCol * 32);
+                for (var i = 0; i < subimgs.length; i++) {
+                    drawImage(subimgs[i], nowx, 0, img);
                     nowx += 32;
                 }
             }
@@ -729,9 +900,10 @@ editor.prototype.drawInitData = function (icons) {
             var autotiles = images[img];
             var tempx = editor.uivalues.folded ? 32 : 96;
             for (var im in autotiles) {
-                var subimgs = core.splitImage(autotiles[im], tempx, autotiles[im].height);
+                var tempy = editor.uivalues.folded ? 32 : autotiles[im].height;
+                var subimgs = splitImage(autotiles[im], tempx, tempy);
                 drawImage(subimgs[0], nowx, nowy, img);
-                nowy += autotiles[im].height;
+                nowy += tempy;
             }
             nowx += tempx;
             continue;
@@ -739,9 +911,8 @@ editor.prototype.drawInitData = function (icons) {
         if (editor.uivalues.folded) {
             // --- 单列 & 折行
             var per_height = img.endsWith('48') ? 48 : 32;
-            var subimgs = core.splitImage(images[img], 32, editor.uivalues.foldPerCol * per_height);
-            var frames = images[img].width / 32;
-            for (var i = 0; i < subimgs.length; i+=frames) {
+            var subimgs = splitImage(images[img], 32, editor.uivalues.foldPerCol * per_height);
+            for (var i = 0; i < subimgs.length; i++) {
                 drawImage(subimgs[i], nowx, 0, img);
                 nowx += 32;
             }
@@ -854,7 +1025,7 @@ editor.prototype.setSelectBoxFromInfo=function(thisevent, scrollTo){
 }
 
 editor.prototype.addUsedFlags = function (s) {
-    s.replace(/flag:([a-zA-Z0-9_\u4E00-\u9FCC]+)/g, function (s0, s1) {
+    s.replace(/flag:([a-zA-Z0-9_\u4E00-\u9FCC\u3040-\u30FF\u2160-\u216B\u0391-\u03C9]+)/g, function (s0, s1) {
         editor.used_flags[s1] = true; return s0;
     });
     s.replace(/flags\.([a-zA-Z_]\w*)/g, function (s0, s1) {

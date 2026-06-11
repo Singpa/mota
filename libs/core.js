@@ -1,4 +1,3 @@
-/// <reference path="../runtime.d.ts" />
 
 /**
  * 初始化 start
@@ -6,8 +5,20 @@
 
 "use strict";
 
-function core() {
-    this.__SIZE__ = 13;
+// /**
+//  * @type {CoreMixin}
+//  */
+// const core = (() => {
+
+function core () {
+    this._WIDTH_ = 13;
+    this._HEIGHT_ = 13;
+    this._PX_ = this._WIDTH_ * 32;
+    this._PY_ = this._HEIGHT_ * 32;
+    this._HALF_WIDTH_ = Math.floor(this._WIDTH_ / 2);
+    this._HALF_HEIGHT_ = Math.floor(this._HEIGHT_ / 2);
+
+    this.__SIZE__ = main.mode == 'editor' ? 13 : this._HEIGHT_;
     this.__PIXELS__ = this.__SIZE__ * 32;
     this.__HALF_SIZE__ = Math.floor(this.__SIZE__ / 2);
     this.material = {
@@ -46,12 +57,16 @@ function core() {
         'weather': {
             'time': 0,
             'type': null,
+            'level': 1,
             'nodes': [],
             'data': null,
             'fog': null,
+            'cloud': null,
+            'sun': null
         },
         "tip": null,
-        "asyncId": {}
+        "asyncId": {},
+        "lastAsyncId": null
     }
     this.musicStatus = {
         'audioContext': null, // WebAudioContext
@@ -64,6 +79,8 @@ function core() {
         'playingSounds': {}, // 正在播放的SE
         'userVolume': 1.0, // 用户音量
         'designVolume': 1.0, //设计音量
+        'bgmSpeed': 100, // 背景音乐速度
+        'bgmUsePitch': null, // 是否同时修改音调
         'cachedBgms': [], // 缓存BGM内容
         'cachedBgmCount': 8, // 缓存的bgm数量
     }
@@ -77,7 +94,6 @@ function core() {
         'isQQ': false, // 是否是QQ
         'isChrome': false, // 是否是Chrome
         'supportCopy': false, // 是否支持复制到剪切板
-        'useLocalForage': true,
 
         'fileInput': null, // FileInput
         'fileReader': null, // 是否支持FileReader
@@ -87,6 +103,8 @@ function core() {
     // 样式
     this.domStyle = {
         scale: 1.0,
+        ratio: 1.0,
+        hdCanvas: ["damage", "ui", "data"],
         availableScale: [],
         isVertical: false,
         showStatusBar: true,
@@ -97,9 +115,9 @@ function core() {
         offsetX: 0, // in pixel
         offsetY: 0,
         posX: 0, // 
-        posY: 0, 
-        width: this.__SIZE__, // map width and height
-        height: this.__SIZE__,
+        posY: 0,
+        width: main.mode == 'editor' ? this.__SIZE__ : this._WIDTH_, // map width and height
+        height: main.mode == 'editor' ? this.__SIZE__ : this._HEIGHT_,
         v2: false,
         threshold: 1024,
         extend: 10,
@@ -119,7 +137,8 @@ function core() {
             "now": 0,
         },
         "favorite": [],
-        "favoriteName": {}
+        "favoriteName": {},
+        "cache": {}
     }
     this.initStatus = {
         'played': false,
@@ -127,7 +146,7 @@ function core() {
 
         // 勇士属性
         'hero': {},
-        'heroCenter': {'px': null, 'py': null},
+        'heroCenter': { 'px': null, 'py': null },
 
         // 当前地图
         'floorId': null,
@@ -163,14 +182,21 @@ function core() {
             'autoStepRoutes': [],
             'moveStepBeforeStop': [],
             'lastDirection': null,
-            'cursorX': null,
-            'cursorY': null,
+            'cursorX': 0,
+            'cursorY': 0,
             "moveDirectly": false,
         },
 
         // 按下键的时间：为了判定双击
         'downTime': null,
         'ctrlDown': false,
+        'preview': {
+            'enabled': false,
+            'prepareDragging': false,
+            'dragging': false,
+            'px': 0,
+            'py': 0,
+        },
 
         // 路线&回放
         'route': [],
@@ -178,6 +204,7 @@ function core() {
             'replaying': false,
             'pausing': false,
             'animate': false, // 正在某段动画中
+            'failed': false,
             'toReplay': [],
             'totalList': [],
             'speed': 1.0,
@@ -207,16 +234,18 @@ function core() {
             "textfont": 16,
             "bold": false,
             "time": 0,
+            "letterSpacing": 0,
+            "animateTime": 0,
         },
         "globalAttribute": {
             'equipName': main.equipName || [],
             "statusLeftBackground": main.styles.statusLeftBackground || "url(project/materials/ground.png) repeat",
             "statusTopBackground": main.styles.statusTopBackground || "url(project/materials/ground.png) repeat",
             "toolsBackground": main.styles.toolsBackground || "url(project/materials/ground.png) repeat",
-            "borderColor": main.styles.borderColor || [204,204,204,1],
-            "statusBarColor": main.styles.statusBarColor || [255,255,255,1],
+            "borderColor": main.styles.borderColor || [204, 204, 204, 1],
+            "statusBarColor": main.styles.statusBarColor || [255, 255, 255, 1],
             "floorChangingStyle": main.styles.floorChangingStyle || "background-color: black; color: white",
-            "selectColor": main.styles.selectColor || [255,215,0,1],
+            "selectColor": main.styles.selectColor || [255, 215, 0, 1],
             "font": main.styles.font || "Verdana"
         },
         'curtainColor': null,
@@ -233,6 +262,11 @@ function core() {
     this.markedFloorIds = {};
     this.status = {};
     this.dymCanvas = {};
+
+    if (main.mode == 'editor') {
+        document.documentElement.style.setProperty('--size', this.__SIZE__);
+        document.documentElement.style.setProperty('--pixel', this.__PIXELS__ + 'px');
+    }
 }
 
 /////////// 系统事件相关 ///////////
@@ -246,17 +280,22 @@ core.prototype.init = function (coreData, callback) {
     this._init_platform();
     this._init_others();
     this._init_plugins();
-
+    var b = main.mode == 'editor';
     // 初始化画布
     for (var name in core.canvas) {
-        core.canvas[name].canvas.width = core.canvas[name].canvas.height = core.__PIXELS__;
+        if (core.domStyle.hdCanvas.indexOf(name) >= 0)
+            core.maps._setHDCanvasSize(core.canvas[name], b ? core.__PIXELS__ : core._PX_, b ? core.__PIXELS__ : core._PY_);
+        else {
+            core.canvas[name].canvas.width = (b ? core.__PIXELS__ : core._PX_);
+            core.canvas[name].canvas.height = (b ? core.__PIXELS__ : core._PY_);
+        }
     }
 
     core.loader._load(function () {
         core.extensions._load(function () {
             core._afterLoadResources(callback);
         });
-    });    
+    });
     core.dom.musicBtn.style.display = 'block';
     core.setMusicBtn();
 }
@@ -266,7 +305,7 @@ core.prototype._init_flags = function () {
     core.values = core.clone(core.data.values);
     core.firstData = core.clone(core.data.firstData);
     this._init_sys_flags();
-    
+
     // 让你总是拼错！
     window.on = true;
     window.off = false;
@@ -277,7 +316,14 @@ core.prototype._init_flags = function () {
     core.dom.logoLabel.innerText = core.firstData.title;
     document.title = core.firstData.title + " - HTML5魔塔";
     document.getElementById("startLogo").innerText = core.firstData.title;
-    (core.firstData.shops||[]).forEach(function (t) { core.initStatus.shops[t.id] = t; });
+    (core.firstData.shops || []).forEach(function (t) { core.initStatus.shops[t.id] = t; });
+
+    core.maps._initFloors();
+    // 初始化怪物、道具等
+    core.material.enemys = core.enemys.getEnemys();
+    core.material.items = core.items.getItems();
+    core.material.icons = core.icons.getIcons();
+
     // 初始化自动事件
     for (var floorId in core.floors) {
         var autoEvents = core.floors[floorId].autoEvent || {};
@@ -298,7 +344,33 @@ core.prototype._init_flags = function () {
             }
         }
     }
+    // 道具的穿上/脱下，视为自动事件
+    for (var equipId in core.material.items) {
+        var equip = core.material.items[equipId];
+        if (equip.cls != 'equips' || !equip.equip) continue;
+        if (!equip.equip.equipEvent && !equip.equip.unequipEvent) continue;
+        var equipFlag = '_equipEvent_' + equipId;
+        var autoEvent1 = {
+            symbol: "_equipEvent_" + equipId,
+            currentFloor: false,
+            multiExecute: true,
+            condition: "core.hasEquip('" + equipId + "') && !core.hasFlag('" + equipFlag + "')",
+            data: core.precompile([{ "type": "setValue", "name": "flag:" + equipFlag, "value": "true" }].concat(equip.equip.equipEvent || [])),
+        };
+        var autoEvent2 = {
+            symbol: "_unequipEvent_" + equipId,
+            currentFloor: false,
+            multiExecute: true,
+            condition: "!core.hasEquip('" + equipId + "') && core.hasFlag('" + equipFlag + "')",
+            data: core.precompile([{ "type": "setValue", "name": "flag:" + equipFlag, "value": "null" }].concat(equip.equip.unequipEvent || [])),
+        };
+        core.initStatus.autoEvents.push(autoEvent1);
+        core.initStatus.autoEvents.push(autoEvent2);
+    }
+
     core.initStatus.autoEvents.sort(function (e1, e2) {
+        if (e1.floorId == null) return 1;
+        if (e2.floorId == null) return -1;
         if (e1.priority != e2.priority) return e2.priority - e1.priority;
         if (e1.floorId != e2.floorId) return core.floorIds.indexOf(e1.floorId) - core.floorIds.indexOf(e2.floorId);
         if (e1.x != e2.x) return e1.x - e2.x;
@@ -306,46 +378,40 @@ core.prototype._init_flags = function () {
         return e1.index - e2.index;
     })
 
-    core.maps._setFloorSize();
-    // 初始化怪物、道具等
-    core.material.enemys = core.enemys.getEnemys();
-    core.material.items = core.items.getItems();
-    core.material.icons = core.icons.getIcons();
 }
 
 core.prototype._init_sys_flags = function () {
     if (core.flags.equipboxButton) core.flags.equipment = true;
-    core.flags.displayEnemyDamage = core.getLocalStorage('enemyDamage', core.flags.displayEnemyDamage);
-    core.flags.displayCritical = core.getLocalStorage('critical', core.flags.displayCritical);
-    core.flags.displayExtraDamage = core.getLocalStorage('extraDamage', core.flags.displayExtraDamage);
+    core.flags.displayEnemyDamage = core.getLocalStorage('enemyDamage', true);
+    core.flags.displayCritical = core.getLocalStorage('critical', true);
+    core.flags.displayExtraDamage = core.getLocalStorage('extraDamage', true);
+    core.flags.enableEnemyPoint = core.getLocalStorage('enableEnemyPoint', core.flags.enableEnemyPoint);
+    core.flags.leftHandPrefer = core.getLocalStorage('leftHandPrefer', false);
+    core.flags.extraDamageType = core.getLocalStorage('extraDamageType', 2);
     // 行走速度
-    core.values.moveSpeed = core.getLocalStorage('moveSpeed', 100);
+    core.values.moveSpeed = core.getLocalStorage('moveSpeed', core.values.moveSpeed || 100);
     core.values.floorChangeTime = core.getLocalStorage('floorChangeTime', core.values.floorChangeTime);
     if (core.values.floorChangeTime == null) core.values.floorChangeTime = 500;
-    if (main.mode != 'editor') {
-        core.domStyle.scale = core.getLocalStorage('scale', 1);
-        if (core.domStyle.scale != 1) {
-            core.resize();
-        }
-    }
+    core.flags.enableHDCanvas = core.getLocalStorage('enableHDCanvas', !core.platform.isIOS);
 }
 
 core.prototype._init_platform = function () {
     core.platform.isOnline = location.protocol.indexOf("http") == 0;
     if (!core.platform.isOnline) alert("请勿直接打开html文件！使用启动服务或者APP进行离线游戏。");
     window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
+    core.musicStatus.bgmStatus = core.getLocalStorage('bgmStatus', true);
+    core.musicStatus.soundStatus = core.getLocalStorage('soundStatus', true);
+    //新增 userVolume 默认值0.7
+    core.musicStatus.userVolume = core.getLocalStorage('userVolume', 0.7);
     try {
         core.musicStatus.audioContext = new window.AudioContext();
         core.musicStatus.gainNode = core.musicStatus.audioContext.createGain();
+        core.musicStatus.gainNode.gain.value = core.musicStatus.userVolume;
         core.musicStatus.gainNode.connect(core.musicStatus.audioContext.destination);
     } catch (e) {
         console.log("该浏览器不支持AudioContext");
         core.musicStatus.audioContext = null;
     }
-    core.musicStatus.bgmStatus = core.getLocalStorage('bgmStatus', true);
-    core.musicStatus.soundStatus = core.getLocalStorage('soundStatus', true);
-    //新增 userVolume 默认值1.0
-    core.musicStatus.userVolume = core.getLocalStorage('userVolume', 1.0);
     ["Android", "iPhone", "SymbianOS", "Windows Phone", "iPad", "iPod"].forEach(function (t) {
         if (navigator.userAgent.indexOf(t) >= 0) {
             if (t == 'iPhone' || t == 'iPad' || t == 'iPod') core.platform.isIOS = true;
@@ -360,7 +426,6 @@ core.prototype._init_platform = function () {
     core.platform.isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
     core.platform.isQQ = /QQ/i.test(navigator.userAgent);
     core.platform.isWeChat = /MicroMessenger/i.test(navigator.userAgent);
-    this._init_checkLocalForage();
     if (window.FileReader) {
         core.platform.fileReader = new FileReader();
         core.platform.fileReader.onload = function () {
@@ -371,36 +436,11 @@ core.prototype._init_platform = function () {
                 core.platform.errorCallback();
         }
     }
-}
 
-core.prototype._init_checkLocalForage = function () {
-    core.platform.useLocalForage = core.getLocalStorage('useLocalForage', true);
-    var _error = function (e) {
-        main.log(e);
-        core.platform.useLocalForage = false;
-    };
-    if (core.platform.useLocalForage) {
-        try {
-            core.setLocalForage("__test__", lzw_encode("__test__"), function () {
-                try {
-                    core.getLocalForage("__test__", null, function (data) {
-                        try {
-                            if (lzw_decode(data) != "__test__") {
-                                console.log("localForage unsupported!");
-                                core.platform.useLocalForage = false;
-                            }
-                            else {
-                                console.log("localForage supported!");
-                                core.removeLocalForage("__test__");
-                            }
-                        }
-                        catch (e) {_error(e);}
-                    }, _error)
-                }
-                catch (e) {_error(e);}
-            }, _error)
-        }
-        catch (e) {_error(e);}
+    core.flags.enableHDCanvas = core.getLocalStorage('enableHDCanvas', !core.platform.isIOS);
+    if (main.mode != 'editor') {
+        core.domStyle.scale = core.getLocalStorage('scale', 1);
+        if (core.flags.enableHDCanvas) core.domStyle.ratio = Math.max(window.devicePixelRatio || 1, core.domStyle.scale);
     }
 }
 
@@ -413,7 +453,8 @@ core.prototype._init_others = function () {
     core.bigmap.cacheCanvas = document.createElement('canvas').getContext('2d');
     core.loadImage("materials", 'fog', function (name, img) { core.animateFrame.weather.fog = img; });
     core.loadImage("materials", "cloud", function (name, img) { core.animateFrame.weather.cloud = img; })
-    core.loadImage("materials", 'keyboard', function (name, img) {core.material.images.keyboard = img; });
+    core.loadImage("materials", "sun", function (name, img) { core.animateFrame.weather.sun = img; })
+    core.loadImage("materials", 'keyboard', function (name, img) { core.material.images.keyboard = img; });
     // 记录存档编号
     core.saves.saveIndex = core.getLocalStorage('saveIndex', 1);
     core.control.getSaveIndexes(function (indexes) { core.saves.ids = indexes; });
@@ -423,6 +464,23 @@ core.prototype._afterLoadResources = function (callback) {
     // 初始化地图
     core.initStatus.maps = core.maps._initMaps();
     core.control._setRequestAnimationFrame();
+    // 图片裁剪
+    (main.splitImages || []).forEach(function (one) {
+        var name = core.getMappedName(one.name);
+        if (!core.material.images.images[name]) {
+            console.warn('找不到图片：' + name + '，无法裁剪');
+            return;
+        }
+        if (!name.endsWith('.png')) {
+            console.warn('无法裁剪非png格式图片：' + name);
+            return;
+        }
+        var arr = core.splitImage(core.material.images.images[name], one.width, one.height);
+        for (var i = 0; i < arr.length; ++i) {
+            core.material.images.images[(one.prefix || "") + i + '.png'] = arr[i];
+        }
+    });
+
     if (core.plugin._afterLoadResources)
         core.plugin._afterLoadResources();
     core.showStartAnimate();
@@ -430,7 +488,7 @@ core.prototype._afterLoadResources = function (callback) {
 }
 
 core.prototype._init_plugins = function () {
-    core.plugin = new function () {};
+    core.plugin = new function () { };
 
     for (var name in plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1) {
         if (plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1[name] instanceof Function) {
@@ -438,8 +496,8 @@ core.prototype._init_plugins = function () {
                 plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1[name].apply(core.plugin);
             }
             catch (e) {
-                main.log(e);
-                main.log("无法初始化插件"+name);
+                console.error(e);
+                console.error("无法初始化插件" + name);
             }
         }
     }
@@ -466,16 +524,13 @@ core.prototype._forwardFunc = function (name, funcname) {
     }
 
     if (core[funcname]) {
-        console.error("ERROR: 无法转发 "+name+" 中的函数 "+funcname+" 到 core 中！同名函数已存在。");
+        console.error("ERROR: 无法转发 " + name + " 中的函数 " + funcname + " 到 core 中！同名函数已存在。");
         return;
     }
     var parameterInfo = /^\s*function\s*[\w_$]*\(([\w_,$\s]*)\)\s*\{/.exec(core[name][funcname].toString());
     var parameters = (parameterInfo == null ? "" : parameterInfo[1]).replace(/\s*/g, '').replace(/,/g, ', ');
     // core[funcname] = new Function(parameters, "return core."+name+"."+funcname+"("+parameters+");");
-    eval("core." + funcname + " = function (" + parameters + ") {\n\treturn core." + name + "." + funcname + "(" + parameters + ");\n}");
-    if (name == 'plugin') {
-        main.log("插件函数转发：core."+funcname+" = core.plugin."+funcname);
-    }
+    eval("core." + funcname + " = function (" + parameters + ") {\n\treturn core." + name + "." + funcname + ".apply(core." + name + ", arguments);\n}");
 }
 
 core.prototype.doFunc = function (func, _this) {
@@ -486,8 +541,7 @@ core.prototype.doFunc = function (func, _this) {
     return func.apply(_this, Array.prototype.slice.call(arguments, 2));
 }
 
-/**
- * 系统机制 end
- */
+// return new Core();
 
+// })();
 var core = new core();

@@ -261,11 +261,11 @@ editor_table_wrapper = function (editor) {
         var thiseval = vobj;
         var comment = String(cobj._data);
 
-        var charlength = 15;
+        // var charlength = 15;
         // "['a']['b']" => "b"
         var shortField = field.split("']").slice(-2)[0].split("['").slice(-1)[0];
         // 把长度超过 charlength 的字符改成 固定长度+...的形式
-        shortField = (shortField.length < charlength ? shortField : shortField.slice(0, charlength) + '...');
+        // shortField = (shortField.length < charlength ? shortField : shortField.slice(0, charlength) + '...');
 
         // 完整的内容转义后供悬停查看
         var commentHTMLescape = editor.util.HTMLescape(comment);
@@ -419,7 +419,7 @@ editor_table_wrapper = function (editor) {
         var cobj = JSON.parse(tr.children[1].getAttribute('cobj'));
         var input = tr.children[2].children[0].children[0];
         if (cobj._type === 'event') editor_blockly.import(guid, { type: cobj._event });
-        if (cobj._type === 'textarea') editor_multi.import(guid, { lint: cobj._lint, string: cobj._string, template: cobj._template });
+        if (cobj._type === 'textarea') editor_multi.import(guid, { lint: cobj._lint, string: cobj._string, template: cobj._template, preview: cobj._preview });
         if (cobj._type === 'material') editor.table.selectMaterial(input, cobj);
         if (cobj._type === 'color') editor.table.selectColor(input);
         if (cobj._type === 'point') editor.table.selectPoint(input);
@@ -451,7 +451,7 @@ editor_table_wrapper = function (editor) {
     editor_table.prototype.dblclickfunc = function (guid, obj, commentObj, thisTr, input, field, cobj, modeNode) {
         if (editor_mode.doubleClickMode === 'change') {
             if (cobj._type === 'event') editor_blockly.import(guid, { type: cobj._event });
-            if (cobj._type === 'textarea') editor_multi.import(guid, { lint: cobj._lint, string: cobj._string, template: cobj._template });
+            if (cobj._type === 'textarea') editor_multi.import(guid, { lint: cobj._lint, string: cobj._string, template: cobj._template, preview: cobj._preview });
             if (cobj._type === 'material') editor.table.selectMaterial(input, cobj);
             if (cobj._type === 'color') editor.table.selectColor(input);
             if (cobj._type === 'point') editor.table.selectPoint(input);

@@ -97,20 +97,12 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_type": "textarea",
 					"_string": true,
 					"_lint": true,
-					"_docs": "能否使用",
-					"_data": "当前能否使用该道具，仅对cls为tools或constants有效。"
-				},
-				"equipCondition": {
-					"_leaf": true,
-					"_type": "textarea",
-					"_string": true,
-					"_lint": true,
-					"_docs": "能否装备",
-					"_data": "能装备某个装备的条件，仅对cls为equips有效。\n与canUseItemEffect不同，这里null代表可以装备。"
+					"_docs": "能否使用或装备",
+					"_data": "当前能否使用或装备该道具，仅对cls不为items有效。null表示始终不可使用但可装备"
 				}
 			}
 		},
-		"items_template": { 'cls': 'items', 'name': '新物品' },
+		"items_template": { 'cls': 'items', 'name': '新物品', 'canUseItemEffect': 'true' },
 
 
 		// --------------------------- 【怪物】相关的表格配置 --------------------------- //
@@ -129,12 +121,41 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_string": true,
 					"_data": "名称"
 				},
+				"description": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_string": true,
+					"_docs": "怪物描述",
+					"_data": "可在怪物详细信息页面写的怪物描述，支持颜色、字体大小和样式、粗体斜体等转义方式。"
+				},
 				"displayIdInBook": {
 					"_leaf": true,
 					"_type": "textarea",
 					"_string": true,
-					"_docs": "手册映射ID",
+					"_docs": "手册ID",
 					"_data": "在怪物手册中映射到的怪物ID。如果此项不为null，则在怪物手册中，将用目标ID来替换该怪物原本的ID。常被运用在同一个怪物的多朝向上。"
+				},
+				"faceIds": {
+					"_leaf": true,
+					"_type": "event",
+					"_event": "faceIds",
+					"_docs": "行走朝向",
+					"_data": "行走图朝向。在勇士撞上图块时，或图块在移动时，会自动选择最合适的朝向图块（如果存在定义）来进行绘制。"
+				},
+				"bigImage": {
+					"_leaf": true,
+					"_type": "material",
+					"_directory": "./project/images/:images",
+					"_transform": (function (one) {
+						if (one.endsWith('.png')) return one;
+						return null;
+					}).toString(),
+					"_onconfirm": (function (previous, current) {
+						if (current.length == 0) return null;
+						return current[0];
+					}).toString(),
+					"_docs": "绑定贴图",
+					"_data": "该怪物绑定的怪物贴图，用法详见文档"
 				},
 				"hp": {
 					"_leaf": true,
@@ -190,20 +211,87 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_leaf": true,
 					"_type": "textarea",
 					"_docs": "特殊属性数值",
-					"_data": "特殊属性的数值\n如：领域/阻激/激光怪的伤害值；吸血怪的吸血比例；光环怪增加生命的比例"
+					"_data": "特殊属性的数值\n如：领域/阻激/激光怪的伤害值；光环怪增加生命的比例"
+				},
+				"zone": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "领域伤害",
+					"_data": "领域怪的伤害值"
+				},
+				"repulse": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "阻击伤害",
+					"_data": "阻击怪的伤害值"
+				},
+				"laser": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "激光伤害",
+					"_data": "激光怪的伤害值"
+				},
+				"breakArmor": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "破甲比例",
+					"_data": "破甲百分比"
+				},
+				"counterAttack": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "反击比例",
+					"_data": "反击百分比"
+				},
+				"vampire": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "吸血比例",
+					"_data": "吸血怪的吸血百分比"
+				},
+				"hpBuff": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "光环加血",
+					"_data": "光环怪增加生命的比例"
+				},
+				"atkBuff": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "光环加攻",
+					"_data": "光环怪增加攻击的比例"
+				},
+				"defBuff": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "光环加防",
+					"_data": "光环怪增加防御的比例"
 				},
 				"zoneSquare": {
 					"_leaf": true,
 					"_type": "checkbox",
-					"_docs": "九宫格领域",
-					"_data": "领域怪是否九宫格伤害"
+					"_docs": "九宫格",
+					"_data": "领域、阻击或捕捉怪是否九宫格"
+				},
+				"haloSquare": {
+					"_leaf": true,
+					"_type": "checkbox",
+					"_docs": "九宫格",
+					"_data": "光环怪是否九宫格"
 				},
 				"range": {
 					"_leaf": true,
 					"_type": "textarea",
 					"_range": "(thiseval==~~thiseval && thiseval>0)||thiseval==null",
 					"_docs": "领域范围",
-					"_data": "领域伤害的范围；不加默认为1"
+					"_data": "领域的范围；不加默认为1"
+				},
+				"haloRange": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_range": "(thiseval==~~thiseval && thiseval>0)||thiseval==null",
+					"_docs": "光环范围",
+					"_data": "光环的范围；不加为全图效果"
 				},
 				"notBomb": {
 					"_leaf": true,
@@ -216,27 +304,40 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_type": "textarea",
 					"_range": "(thiseval==~~thiseval && thiseval>0)||thiseval==null",
 					"_docs": "连击数",
-					"_data": "多连击的连击数"
+					"_data": "多连击的连击数，净化怪的净化倍率"
+				},
+				"purify": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_range": "(thiseval==~~thiseval && thiseval>0)||thiseval==null",
+					"_docs": "净化倍率",
+					"_data": "净化百分比"
 				},
 				"add": {
 					"_leaf": true,
 					"_type": "checkbox",
 					"_docs": "吸血加到自身",
-					"_data": "吸血后是否加到自身；光环是否叠加"
+					"_data": "吸血后是否加到自身"
+				},
+				"haloAdd": {
+					"_leaf": true,
+					"_type": "checkbox",
+					"_docs": "光环是否叠加",
+					"_data": "光环是否叠加"
 				},
 				"atkValue": {
 					"_leaf": true,
 					"_type": "textarea",
 					"_range": "thiseval==~~thiseval||thiseval==null",
-					"_docs": "退化扣除攻击",
-					"_data": "退化时勇士下降的攻击力点数；光环怪增加攻击的比例"
+					"_docs": "退化扣攻",
+					"_data": "退化时勇士下降的攻击力点数"
 				},
 				"defValue": {
 					"_leaf": true,
 					"_type": "textarea",
 					"_range": "thiseval==~~thiseval||thiseval==null",
-					"_docs": "退化扣除防御",
-					"_data": "退化时勇士下降的防御力点数；光环怪增加防御的比例"
+					"_docs": "退化扣防",
+					"_data": "退化时勇士下降的防御力点数"
 				},
 				"damage": {
 					"_leaf": true,
@@ -244,6 +345,20 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_range": "thiseval==~~thiseval||thiseval==null",
 					"_docs": "固伤",
 					"_data": "战前扣血的点数"
+				},
+				"beforeBattle": {
+					"_leaf": true,
+					"_type": "event",
+					"_event": "beforeBattle",
+					"_docs": "战前事件",
+					"_data": "和该怪物战斗前触发的事件列表"
+				},
+				"afterBattle": {
+					"_leaf": true,
+					"_type": "event",
+					"_event": "afterBattle",
+					"_docs": "战后事件",
+					"_data": "和该怪物战斗后触发的事件列表"
 				}
 			}
 		},
@@ -307,6 +422,13 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_docs": "碰触脚本",
 					"_data": "触碰到该图块时自动执行的脚本内容；此脚本会在该点的触发器执行前执行"
 				},
+				"event": {
+					"_leaf": true,
+					"_type": "event",
+					"_event": "item",
+					"_docs": "碰触事件",
+					"_data": "触碰到该图块时自动执行的事件内容；如果存在本事件则不会执行默认触发器"
+				},
 				"cannotOut": {
 					"_leaf": true,
 					"_type": "checkboxSet",
@@ -354,7 +476,22 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_type": "event",
 					"_event": "faceIds",
 					"_docs": "行走图朝向",
-					"_data": "行走图朝向，仅对npc48有效。在勇士撞上NPC时，或NPC在移动时，会自动选择最合适的朝向图块（如果存在定义）来进行绘制。"
+					"_data": "行走图朝向。在勇士撞上图块时，或图块在移动时，会自动选择最合适的朝向图块（如果存在定义）来进行绘制。"
+				},
+				"bigImage": {
+					"_leaf": true,
+					"_type": "material",
+					"_directory": "./project/images/:images",
+					"_transform": (function (one) {
+						if (one.endsWith('.png')) return one;
+						return null;
+					}).toString(),
+					"_onconfirm": (function (previous, current) {
+						if (current.length == 0) return null;
+						return current[0];
+					}).toString(),
+					"_docs": "绑定贴图",
+					"_data": "该图块绑定的贴图，用法详见文档"
 				}
 			}
 		},
@@ -403,8 +540,14 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 						"canFlyTo": {
 							"_leaf": true,
 							"_type": "checkbox",
-							"_docs": "可楼传",
-							"_data": "该楼能否被楼传器飞到（不能的话在该楼也不允许使用楼传器）"
+							"_docs": "可楼传飞到",
+							"_data": "该楼能否被楼传器飞到"
+						},
+						"canFlyFrom": {
+							"_leaf": true,
+							"_type": "checkbox",
+							"_docs": "可楼传飞出",
+							"_data": "该楼能否用楼传器飞出"
 						},
 						"canUseQuickShop": {
 							"_leaf": true,
@@ -496,21 +639,29 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 							"_leaf": true,
 							"_type": "textarea",
 							"_docs": "天气",
-							"_data": "该层的默认天气。本项可忽略表示晴天，如果写则第一项为\"rain\"，\"snow\"或\"fog\"代表雨雪雾，第二项为1-10之间的数代表强度。\n如[\"rain\", 8]代表8级雨天。"
+							"_data": "该层的默认天气。本项可忽略表示晴天，如果写则第一项为\"rain\"，\"snow\", \"sun\", \"fog\", \"cloud\“代表对应的天气，第二项为1-10之间的数代表强度。\n如[\"rain\", 8]代表8级雨天。"
 						},
 						"bgm": {
 							"_leaf": true,
-							"_type": "select",
-							"_select": {
-								"values": [null].concat(Object.keys(editor.core.material.bgms))
-							},
+							"_type": "material",
+							"_directory": "./project/bgms/",
+							"_transform": (function (one) {
+								if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav') || one.endsWith('.m4a') || one.endsWith('.flac'))
+									return one;
+								return null;
+							}).toString(),
+							"_onconfirm": (function (previous, current) {
+								if (current.length == 0) return null;
+								if (current.length == 1) return current[0];
+								return current;
+							}).toString(),
 							"_docs": "背景音乐",
 							"_data": "到达该层后默认播放的BGM"
 						},
 						"ratio": {
 							"_leaf": true,
 							"_type": "textarea",
-							"_range": "thiseval==~~thiseval && thiseval>=0",
+							"_range": "thiseval <= Number.MAX_SAFE_INTEGER && thiseval>=0",
 							"_docs": "宝石血瓶效果",
 							"_data": "每一层的宝石/血瓶效果，即获得宝石和血瓶时框内\"ratio\"的值。"
 						}
@@ -551,6 +702,13 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 							"_docs": "楼层转换",
 							"_data": "该点楼层转换事件；该事件不能和上面的events同时出现，否则会被覆盖"
 						},
+						"beforeBattle": {
+							"_leaf": true,
+							"_type": "event",
+							"_event": "beforeBattle",
+							"_docs": "战前事件",
+							"_data": "该点战斗前可能触发的事件列表，可以双击进入事件编辑器。"
+						},
 						"afterBattle": {
 							"_leaf": true,
 							"_type": "event",
@@ -579,8 +737,18 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 								"prefix": ["上: ", "下: ", "<br>左: ", "右: "],
 								"key": ["up", "down", "left", "right"]
 							},
-							"_docs": "不可通行性",
-							"_data": "该点不可通行的方向 \n 可以在这里定义该点不能前往哪个方向，可以达到悬崖之类的效果\n例如 [\"up\", \"left\"] 代表该点不能往上和左走"
+							"_docs": "不可出方向",
+							"_data": "该点不可通行出的方向 \n 可以在这里定义该点不能前往哪个方向，可以达到悬崖之类的效果"
+						},
+						"cannotMoveIn": {
+							"_leaf": true,
+							"_type": "checkboxSet",
+							"_checkboxSet": {
+								"prefix": ["上: ", "下: ", "<br>左: ", "右: "],
+								"key": ["up", "down", "left", "right"]
+							},
+							"_docs": "不可入方向",
+							"_data": "该点不可通行入的方向 \n 可以在这里定义从哪个方向前往该点，可以达到悬崖之类的效果"
 						},
 					}
 				}
@@ -594,6 +762,7 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 			"width": 13,
 			"height": 13,
 			"canFlyTo": true,
+			"canFlyFrom": true,
 			"canUseQuickShop": true,
 			"cannotViewMap": false,
 			"cannotMoveDirectly": false,
@@ -610,11 +779,13 @@ var comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 			"parallelDo": "",
 			"events": {},
 			"changeFloor": {},
+			"beforeBattle": {},
 			"afterBattle": {},
 			"afterGetItem": {},
 			"afterOpenDoor": {},
 			"autoEvent": {},
-			"cannotMove": {}
+			"cannotMove": {},
+			"cannotMoveIn": {}
 		}
 	}
 }

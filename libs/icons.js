@@ -1,8 +1,7 @@
-/// <reference path="../runtime.d.ts" />
 
 "use strict";
 
-function icons() {
+function icons () {
     this._init();
 }
 
@@ -15,7 +14,10 @@ icons.prototype._init = function () {
 }
 
 icons.prototype.getIcons = function () {
-    return core.clone(this.icons);
+    var icons = core.clone(this.icons);
+    icons.hero.leftup = icons.hero.leftdown = icons.hero.left;
+    icons.hero.rightup = icons.hero.rightdown = icons.hero.right;
+    return icons;
 }
 
 ////// 根据道具ID获得其cls //////
@@ -67,7 +69,7 @@ icons.prototype.getTilesetOffset = function (id) {
         var width = Math.floor(parseInt(img.getAttribute('_width')) / 32), height = Math.floor(parseInt(img.getAttribute('_height')) / 32);
         if (id >= startOffset && id < startOffset + width * height) {
             var x = (id - startOffset) % width, y = parseInt((id - startOffset) / width);
-            return {"image": imgName, "x": x, "y": y};
+            return { "image": imgName, "x": x, "y": y };
         }
         startOffset += this.tilesetStartOffset;
     }

@@ -132,23 +132,28 @@ editor_materialpanel_wrapper = function (editor) {
                 var autotiles = core.material.images['autotile'];
                 if (pos.images == 'autotile') {
                     var imNames = Object.keys(autotiles);
-                    if ((pos.y + 1) * ysize > editor.widthsX[spriter][3])
-                        pos.y = ~~(editor.widthsX[spriter][3] / ysize) - 4;
-                    else {
-                        for (var i = 0; i < imNames.length; i++) {
-                            if (pos.y >= 4 * i && pos.y < 4 * (i + 1)) {
-                                pos.images = imNames[i];
-                                pos.y = 4 * i;
+                    if (editor.uivalues.folded) {
+                        pos.y = Math.min(pos.y, imNames.length - 1);
+                        pos.images = imNames[pos.y];
+                    } else {
+                        if ((pos.y + 1) * ysize > editor.widthsX[spriter][3])
+                            pos.y = ~~(editor.widthsX[spriter][3] / ysize) - 4;
+                        else {
+                            for (var i = 0; i < imNames.length; i++) {
+                                if (pos.y >= 4 * i && pos.y < 4 * (i + 1)) {
+                                    pos.images = imNames[i];
+                                    pos.y = 4 * i;
+                                }
                             }
                         }
                     }
                 }
                 else {
                     var height = editor.widthsX[spriter][3], col = height / ysize;
+                    if (spriter == 'terrains') col += 2;
                     if (editor.uivalues.folded && core.tilesets.indexOf(pos.images) == -1) {
                         col = (pos.x == editor.widthsX[spriter][2] - 1) ? ((col - 1) % editor.uivalues.foldPerCol + 1) : editor.uivalues.foldPerCol;
                     }
-                    if (spriter == 'terrains' && pos.x == editor.widthsX[spriter][1]) col += 2;
                     pos.y = Math.min(pos.y, col - 1);
                 }
 
@@ -172,7 +177,7 @@ editor_materialpanel_wrapper = function (editor) {
                         if (editor.uivalues.folded) {
                             y += editor.uivalues.foldPerCol * (pos.x - editor.widthsX[spriter][1]);
                         }
-                        if (pos.images == 'terrains' && pos.x == 0) y -= 2;
+                        if (pos.images == 'terrains') y -= 2;
                         editor.info = { 'images': pos.images, 'y': y }
                     }
 
@@ -190,10 +195,7 @@ editor_materialpanel_wrapper = function (editor) {
                         }
                     }
 
-                    if (editor.info.isTile && e.button == 2) { //这段改一改之类的应该能给手机用,就不删了
-                        // 废弃好了
-                        alert('V2.7后右键已被废弃，请直接素材区拖框选中区域。');
-                        /*
+                    if (editor.info.isTile && (editor.isMobile || e.button == 2)) { //这段改一改之类的应该能给手机用,就不删了
                         var v = prompt("请输入该额外素材区域绑定宽高，以逗号分隔", "1,1");
                         if (v != null && /^\d+,\d+$/.test(v)) {
                             v = v.split(",");
@@ -209,9 +211,8 @@ editor_materialpanel_wrapper = function (editor) {
                                 editor.dom.dataSelection.style.width = 32*x - 6 + 'px';
                             }
                         }
-                        */
                     }
-                    if (editor.info.isTile && e.button != 2) { //左键拖拽框选
+                    if (editor.info.isTile && !editor.isMobile && e.button != 2) { //左键拖拽框选
 
                         var x = pos.x-pos0.x+1, y = pos.y-pos0.y+1;
                         var widthX = editor.widthsX[editor.info.images];

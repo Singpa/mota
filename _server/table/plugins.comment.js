@@ -13,7 +13,7 @@ var plugins_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 				"_leaf": true,
 				"_type": "textarea",
 				"_range": "typeof(thiseval)=='string'",
-				"_data": "自定义插件"
+				"_data": "初始化"
 			},
 			"shop": {
 				"_leaf": true,
@@ -51,30 +51,30 @@ var plugins_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 				"_range": "typeof(thiseval)=='string' || thiseval==null",
 				"_data": "手册显示怪物境界"
 			},
-			"dynamicHp": {
-				"_leaf": true,
-				"_type": "textarea",
-				"_range": "typeof(thiseval)=='string' || thiseval==null",
-				"_data": "动态血量变化"
-			},
 			"multiHeros": {
 				"_leaf": true,
 				"_type": "textarea",
 				"_range": "typeof(thiseval)=='string' || thiseval==null",
 				"_data": "多角色"
 			},
-			"flyHideFloors": {
+			"heroFourFrames": {
 				"_leaf": true,
 				"_type": "textarea",
 				"_range": "typeof(thiseval)=='string' || thiseval==null",
-				"_data": "楼传可以跳过楼层"
+				"_data": "勇士四帧行走动画"
 			},
-			"itemCategory": {
+			"routeFixing": {
 				"_leaf": true,
 				"_type": "textarea",
 				"_range": "typeof(thiseval)=='string' || thiseval==null",
-				"_data": "物品分类插件"
+				"_data": "录像精修"
 			},
+			"numpad": {
+				"_leaf": true,
+				"_type": "textarea",
+				"_range": "typeof(thiseval)=='string' || thiseval==null",
+				"_data": "整数输入面板美化"
+			}
 		}
 		if (obj[key]) return obj[key];
 		return {

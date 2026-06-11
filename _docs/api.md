@@ -15,7 +15,7 @@ core.js中只有很少的几个函数，主要是游戏开始前的初始化等�
 但是，core中定义了很多游戏运行时的状态，这些状态很多都会被使用到。
 
 ```text
-<b>core.__SIZE__, core.__PIXELS__</b>
+core.__SIZE__, core.__PIXELS__
 游戏窗口大小；对于13x13的游戏而言这两个值分别是13和416，15x15来说分别是15和480。
 
 
@@ -56,12 +56,12 @@ core.platform
 core.platform.isPC    （是否是电脑端）
 core.platform.isAndroid    （是否是安卓端）
 core.platform.isIOS    （是否是iOS端）
-core.platform.useLocalForage    （是否开启了新版存档）
 
 
 core.domStyle
 游戏的界面信息，包含如下几个：
 core.domStyle.scale    （当前的放缩比）
+core.domStyle.ratio    （高清UI的放缩比）
 core.domStyle.isVertical    （当前是否是竖屏状态）
 core.domStyle.showStatusBar    （当前是否显示状态栏）
 core.domStyle.toolbarBtn    （当前是否显示工具栏）
@@ -72,7 +72,7 @@ core.bigmap
 core.bigmap.width    （当前地图的宽度）
 core.bigmap.height    （当前地图的高度）
 core.bigmap.offsetX    （当前地图针对窗口左上角的偏移像素x）
-core.bigmap.offsetX    （当前地图针对窗口左上角的偏移像素y）
+core.bigmap.offsetY    （当前地图针对窗口左上角的偏移像素y）
 core.bigmap.tempCanvas    （一个临时画布，可以用来临时绘制很多东西）
 
 
@@ -183,13 +183,13 @@ keyDownCtrl: fn() -> bool
 keyUp: fn(keyCode: number, altKey?: bool, fromReplay?: bool)
 根据放开键的code来执行一系列操作
 
-longClick: fn(x: number, y: number, fromEvent?: bool)
+longClick: fn(x: number, y: number, px: number, py: number, fromEvent?: bool)
 长按
 
 onStatusBarClick: fn(e?: Event)
 点击自绘状态栏时
 
-onclick: fn(x: number, y: number, stepPostfix?: ?)
+onclick: fn(x: number, y: number, px: number, py: number, stepPostfix?: [?])
 具体点击屏幕上(x,y)点时，执行的操作
 
 ondown: fn(loc: {x: number, y: number, size: number})
@@ -261,7 +261,7 @@ addStatus: fn(name: string, value: number)
 name: 属性的英文名
 value: 属性的增量
 
-addSwitch: fn(x: number, y: number, floorId?: string, name: string, value: number)
+addSwitch: fn(x: number, y: number, floorId: string, name: string, value: number)
 增加某个独立开关的值
 
 autosave: fn(removeLast?: bool)
@@ -317,9 +317,6 @@ status: 只能为 stop, leftFoot 和 rightFoot，不填用stop。
 offset: 相对主角逻辑位置的偏移量，不填视为无偏移。
 frame: 绘制的第几帧
 
-fillPosWithPoint: fn(pos?: ?)
-显示离散的寻路点
-
 gatherFollowers: fn()
 立刻聚集所有的跟随者
 
@@ -354,6 +351,16 @@ getMappedName: fn(name: string) -> string
 getNakedStatus: fn(name: string)
 获得勇士原始属性（无装备和衰弱影响）
 
+getNextLvUpNeed: fn() -> number
+获得下次升级需要的经验值。
+升级扣除模式下会返回经验差值；非扣除模式下会返回总共需要的经验值。
+如果无法进行下次升级，返回null。
+
+getPlayingSounds: fn(name?: string) -> [number]
+获得当前正在播放的所有（指定）音效的id列表
+name: 音效名，可用别名；不填代表返回正在播放的全部音效
+返回值: 一个列表，每一项为一个正在播放的音效id；可用core.stopSound立刻停止播放
+
 getRealStatus: fn(name: string)
 计算主角的某个属性，包括百分比修正
 例如：core.getRealStatus('atk'); // 计算主角的攻击力，包括百分比修正。战斗使用的就是这个值
@@ -382,7 +389,7 @@ getStatusLabel: fn(name: string) -> string
 getStatusOrDefault: fn(status?: ?, name?: string)
 从status中获得属性，如果不存在则从勇士属性中获取
 
-getSwitch: fn(x: number, y: number, floorId?: string, name: string, defaultValue?: ?)
+getSwitch: fn(x: number, y: number, floorId: string, name: string, defaultValue?: ?)
 获得某个独立开关的值
 
 hasFlag: fn(name: string) -> bool
@@ -394,7 +401,7 @@ name: 变量名，支持中文
 hasSave: fn(index?: number) -> bool
 判断某个存档位是否存在存档
 
-hasSwitch: fn(x: number, y: number, floorId?: string, name: string) -> bool
+hasSwitch: fn(x: number, y: number, floorId: string, name: string) -> bool
 判定某个独立开关的值
 
 hideStartAnimate: fn(callback?: fn())
@@ -440,7 +447,7 @@ moveOneStep: fn(callback?: fn())
 每移动一格后执行的事件
 【异步脚本，请勿在脚本中直接调用（而是使用对应的事件），否则可能导致录像出错】
 
-moveViewport: fn(steps?: ?, time?: number, callback?: fn())
+moveViewport: fn(x: number, y: number, time?: number, callback?: fn())
 移动视野范围
 
 nearHero: fn(x: number, y: number, n?: number) -> bool
@@ -472,8 +479,12 @@ playBgm: fn(bgm: string, startTime?: number)
 bgm: 背景音乐的文件名，支持全塔属性中映射前的中文名
 startTime: 跳过前多少秒，不填则不跳过
 
-playSound: fn(sound: string)
+playSound: fn(sound: string, pitch?: number, callback?: fn()) -> number
 播放一个音效
+sound: 音效名；可以使用文件别名。
+pitch: 播放的音调；可选，如果设置则为30-300之间的数值；100为正常音调。
+callback: 可选，播放完毕后执行的回调函数。
+返回：一个数字，可用于core.stopSound的参数来只停止该音效。
 
 registerAnimationFrame: fn(name: string, needPlaying: bool, func?: fn(timestamp: number))
 注册一个 animationFrame
@@ -493,13 +504,20 @@ registerResize: fn(name: string, func: fn(obj: ?))
 name: 名称，可供注销使用
 func: 可以是一个函数，或者是插件中的函数名；可以接受obj参数，详见resize函数。
 
+registerWeather: fn(name: string, initFunc: fn(level: number), frameFunc?: fn(timestamp: number, level: number))
+注册一个天气
+name: 要注册的天气名
+initFunc: 当切换到此天气时的初始化；接受level（天气等级）为参数；可用于创建多个节点（如初始化雪花）
+frameFunc: 每帧的天气效果变化；可接受timestamp（从页面加载完毕到当前所经过的时间）和level（天气等级）作为参数
+天气应当仅在weather层进行绘制，推荐使用core.animateFrame.weather.nodes用于节点信息。
+
 removeFlag: fn(name: string)
 删除某个flag/变量
 
 removeSave: fn(index?: number, callback?: fn())
 删除某个存档
 
-removeSwitch: fn(x: number, y: number, floorId?: string, name: string)
+removeSwitch: fn(x: number, y: number, floorId: string, name: string)
 删除某个独立开关
 
 replay: fn()
@@ -524,12 +542,13 @@ saveAndStopAutomaticRoute: fn()
 saveData: fn()
 存档到本地
 
-screenFlash: fn(color: [number], time: number, times?: number, callback?: fn())
+screenFlash: fn(color: [number], time: number, times?: number, moveMode?: string, callback?: fn())
 画面闪烁
 例如：core.screenFlash([255, 0, 0, 1], 3); // 红屏一闪而过
 color: 一行三列（第四列视为1）或一行四列（第四列若大于1则会被视为1，第四列若填负数则会被视为0）的颜色数组，必填
 time: 单次闪烁时长，实际闪烁效果为先花其三分之一的时间渐变到目标色调，再花剩余三分之二的时间渐变回去
 times: 闪烁的总次数，不填或填0都视为1
+moveMode: 渐变方式
 callback: 闪烁全部完毕后的回调函数，可选
 
 setAutoHeroMove: fn(steps: [?])
@@ -544,6 +563,11 @@ destX: 鼠标或手指的起拖点横坐标
 destY: 鼠标或手指的起拖点纵坐标
 stepPostfix: 拖动轨迹的数组表示，每项为一步的方向和目标点。
 
+setBgmSpeed: fn(speed: number, usePitch?: bool)
+设置背景音乐的播放速度和音调
+speed: 播放速度，必须为30-300中间的值。100为正常速度。
+usePitch: 是否同时改变音调（部分设备可能不支持）
+
 setBuff: fn(name: string, value: number)
 设置主角某个属性的百分比修正倍率，初始值为1，
 倍率存放在flag: '__'+name+'_buff__' 中
@@ -551,12 +575,16 @@ setBuff: fn(name: string, value: number)
 name: 属性的英文名，请注意只能用于数值类属性哦，否则随后的乘法会得到NaN
 value: 新的百分比修正倍率，不填（效果上）视为1
 
-setCurtain: fn(color?: [number], time?: number, callback?: fn())
+setCurtain: fn(color?: [number], time?: number, moveMode?: string, callback?: fn())
 更改画面色调，不计入存档。如需长期生效请使用core.events._action_setCurtain()函数
 例如：core.setCurtain(); // 恢复画面色调，用时四分之三秒
 color: 一行三列（第四列视为1）或一行四列（第四列若大于1则会被视为1，第四列若为负数则会被视为0）的颜色数组，不填视为[0, 0, 0, 0]
 time: 渐变时间，单位为毫秒。不填视为750ms，负数视为0（无渐变，立即更改）
+moveMode: 渐变方式
 callback: 更改完毕后的回调函数，可选。事件流中常取core.doAction
+
+setDisplayScale: fn(delta: number)
+设置屏幕放缩
 
 setFlag: fn(name: string, value: ?)
 设置一个flag变量
@@ -579,6 +607,9 @@ noGather: 是否聚集跟随者
 setHeroMoveInterval: fn(callback?: fn())
 设置行走的效果动画
 
+setHeroOpacity: fn(opacity?: number, moveMode?: string, time?: number, callback?: fn())
+改变勇士的不透明度
+
 setMusicBtn: fn()
 设置音乐图标的显隐状态
 
@@ -591,15 +622,15 @@ setStatus: fn(name: string, value: number)
 name: 属性的英文名，其中'x'、'y'和'direction'会被特殊处理为 core.setHeroLoc(name, value)，其他的会直接对 core.status.hero[name] 赋值
 value: 属性的新值
 
-setSwitch: fn(x: number, y: number, floorId?: string, name: string, value?: ?)
+setSwitch: fn(x: number, y: number, floorId: string, name: string, value?: ?)
 设置某个独立开关的值
 
 setToolbarButton: fn(useButton?: bool)
 改变工具栏为按钮1-8
 
-setViewport: fn(x?: number, y?: number)
+setViewport: fn(px?: number, py?: number)
 设置视野范围
-x,y: 左上角相对大地图的像素坐标，不需要为32倍数
+px,py: 左上角相对大地图的像素坐标，不需要为32倍数
 
 setWeather: fn(type?: string, level?: number)
 设置天气，不计入存档。如需长期生效请使用core.events._action_setWeather()函数
@@ -634,8 +665,8 @@ stopAutomaticRoute: fn()
 stopReplay: fn(force?: bool)
 停止播放
 
-stopSound: fn()
-停止所有SE
+stopSound: fn(id?: number)
+停止播放音效。如果未指定id则停止所有音效，否则只停止指定的音效。
 
 syncLoad: fn()
 从服务器加载存档
@@ -650,9 +681,6 @@ triggerDebuff: fn(action: string, type: string|[string])
 获得或移除毒衰咒效果
 action: 要获得还是移除，'get'为获得，'remove'为移除
 type: 获得或移除的内容（poison/weak/curse），可以为字符串或数组
-
-triggerHero: fn(type?: string, time?: number, callback?: fn())
-改变勇士的显隐状态
 
 triggerReplay: fn()
 播放或暂停录像回放
@@ -679,6 +707,9 @@ unregisterReplayAction: fn(name: string)
 
 unregisterResize: fn(name: string)
 注销一个resize函数
+
+unregisterWeather: fn(name: string)
+注销一个天气
 
 updateCheckBlock: fn(floorId?: string)
 更新领域、夹击、阻击的伤害地图
@@ -773,6 +804,9 @@ hero: 可选，此时的勇士属性
 getEnemys: fn()
 获得所有怪物原始数据的一个副本。
 请使用core.material.enemys获得当前各项怪物属性。
+
+getEnemyValue: fn(enemy?: string|enemy, name: string, x?: number, y?: number, floorId?: string)
+获得某个点上怪物的某个属性值
 
 getSpecialColor: fn(enemy: string|enemy) -> [string]
 获得某个怪物所有特殊属性的颜色
@@ -869,7 +903,7 @@ beforeBattle: fn(enemyId?: string, x?: number, y?: number) -> bool
 changeFloor: fn(floorId: string, stair?: string, heroLoc?: {x?: number, y?: number, direction?: string}, time?: number, callback?: fn())
 场景切换
 例如：core.changeFloor('MT0'); // 传送到主塔0层，主角坐标和朝向不变，黑屏时间取用户定义的值
-floorId: 传送的目标地图id，可以填':before'和':after'分别表示楼下或楼上
+floorId: 传送的目标地图id，可以填':before'和':next'分别表示楼下或楼上
 stair: 传送的位置
 heroLoc: 传送的坐标；会覆盖stair
 time: 传送的黑屏时间，单位为毫秒；不填为用户设置值
@@ -885,6 +919,9 @@ checkAutoEvents: fn()
 checkLvUp: fn()
 检查升级事件
 
+clearTextBox: fn(code: number)
+清除对话框
+
 closeDoor: fn(x: number, y: number, id: string, callback?: fn())
 关门，目标点必须为空地
 例如：core.closeDoor(0, 0, 'yellowWall', core.jumpHero); // 在左上角关掉一堵黄墙，然后主角原地跳跃半秒
@@ -897,10 +934,9 @@ callback: 门完全关上后的回调函数，可选
 confirmRestart: fn()
 询问是否需要重新开始
 
-doAction: fn(keepUI?: true)
+doAction: fn()
 执行下一个事件指令，常作为回调
-例如：core.setCurtain([0,0,0,1], undefined, core.doAction); // 事件中的原生脚本，配合勾选“不自动执行下一个事件”来达到此改变色调只持续到下次场景切换的效果
-keepUI: true表示不清除UI画布和选择光标
+例如：core.setCurtain([0,0,0,1], undefined, null, core.doAction); // 事件中的原生脚本，配合勾选“不自动执行下一个事件”来达到此改变色调只持续到下次场景切换的效果
 
 doEvent: fn(data?: ?, x?: number, y?: number, prefix?: string)
 执行一个自定义事件
@@ -947,7 +983,7 @@ getNextItem: fn(noRoute?: bool)
 noRoute: 若为true则不计入录像
 
 hasAsync: fn() -> bool
-当前是否有未处理完毕的异步事件
+当前是否有未处理完毕的异步事件（不包含动画和音效）
 
 hasVisitedFloor: fn(floorId?: string) -> bool
 是否到达过某个楼层
@@ -993,14 +1029,21 @@ load: fn(fromUserAction?: bool)
 lose: fn(reason?: string)
 游戏失败事件
 
-moveImage: fn(code: number, to?: [number], opacityVal?: number, time?: number, callback?: fn())
+moveEnemyOnPoint: fn(fromX: number, fromY: number, toX: number, toY: number, floorId?: string)
+将某个点已经设置的敌人属性移动到其他点
+
+moveImage: fn(code: number, to?: [number], opacityVal?: number, moveMode?: string, time?: number, callback?: fn())
 移动一张图片并/或改变其透明度
 例如：core.moveImage(1, null, 0.5); // 1秒内把1号图片变为50%透明
 code: 图片编号
 to: 新的左上角坐标，省略表示原地改变透明度
 opacityVal: 新的透明度，省略表示不变
+moveMode: 移动模式
 time: 移动用时，单位为毫秒。不填视为1秒
 callback: 图片移动完毕后的回调函数，可选
+
+moveTextBox: fn(code: number, loc: [number], relative?: bool, moveMode?: string, time?: number, callback?: fn())
+移动对话框
 
 onSki: fn(number?: number) -> bool
 当前是否在冰上
@@ -1058,22 +1101,42 @@ registerSystemEvent: fn(type: string, func: fn(data?: ?, callback?: fn()))
 type: 事件名
 func: 为事件的处理函数，可接受(data,callback)参数
 
+resetEnemyOnPoint: fn(x: number, y: number, floorId?: string)
+重置某个点的怪物属性
+
 resetGame: fn(hero?: ?, hard?: ?, floorId?: string, maps?: ?, values?: ?)
 初始化游戏
 
 restart: fn()
 重新开始游戏；此函数将回到标题页面
 
+rotateImage: fn(code: number, center?: [number], angle?: number, moveMode?: string, time?: number, callback?: fn())
+旋转一张图片
+code: 图片编号
+center: 旋转中心像素坐标（以屏幕为基准）；不填视为图片本身中心
+angle: 旋转角度；正数为顺时针，负数为逆时针
+moveMode: 旋转模式
+time: 旋转用时，单位为毫秒。不填视为1秒
+callback: 图片旋转完毕后的回调函数，可选
+
 save: fn(fromUserAction?: bool)
 点击存档按钮时的打开操作
 
-setEnemy: fn(id: string, name: string, value: ?, prefix?: string)
+scaleImage: fn(code: number, center?: [number], scale?: number, moveMode?: string, time?: number, callback?: fn())
+放缩一张图片
+
+setEnemy: fn(id: string, name: string, value: ?, operator?: string, prefix?: string)
 设置一项敌人属性并计入存档
 例如：core.setEnemy('greenSlime', 'def', 0); // 把绿头怪的防御设为0
 id: 敌人id
 name: 属性的英文缩写
 value: 属性的新值，可选
+operator: 运算操作符，可选
 prefix: 独立开关前缀，一般不需要，下同
+
+setEnemyOnPoint: fn(x: number, y: number, floorId?: string, name: string, value: ?, operator?: string, prefix?: string)
+设置某个点的敌人属性。如果该点不是怪物，则忽略此函数。
+例如：core.setEnemyOnPoint(3, 5, null, 'atk', 100, '+='); // 仅将(3,5)点怪物的攻击力加100。
 
 setEvents: fn(list?: [?], x?: number, y?: number, callback?: fn())
 直接设置事件列表
@@ -1100,6 +1163,12 @@ setHeroIcon: fn(name: string, noDraw?: bool)
 例如：core.setHeroIcon('npc48.png', true); // 把主角从阳光变成样板0层左下角的小姐姐，但不立即刷新
 name: 新的行走图文件名，可以是全塔属性中映射前的中文名。映射后会被存入core.status.hero.image
 noDraw: true表示不立即刷新（刷新会导致大地图下视野重置到以主角为中心）
+
+setNameMap: fn(name: string, value?: string)
+设置文件别名
+
+setTextAttribute: fn(data: ?)
+设置剧情文本的属性
 
 setValue: fn(name: string, operator: string, value: ?, prefix?: string)
 数值操作
@@ -1140,6 +1209,9 @@ seed: 随机种子，相同的种子保证了录像的可重复性
 route: 经由base64压缩后的录像，用于从头开始的录像回放
 callback: 回调函数，可选
 
+stopAsync: fn()
+立刻停止所有正在进行的异步事件
+
 trigger: fn(x?: number, y?: number, callback?: fn())
 触发(x,y)点的系统事件；会执行该点图块的script属性，同时支持战斗（会触发战后）、道具（会触发道具后）、楼层切换等等
 callback: 执行完毕的回调函数
@@ -1163,10 +1235,13 @@ unregisterSystemEvent: fn(type: string)
 useFly: fn(fromUserAction?: bool)
 点击楼层传送器时的打开操作
 
-vibrate: fn(time?: number, callback?: fn())
-视野左右抖动
+vibrate: fn(direction?: string, time?: number, speed?: number, power?: number, callback?: fn())
+视野抖动
 例如：core.vibrate(); // 视野左右抖动1秒
-time: 抖动时长，单位为毫秒。必须为半秒的倍数，不填或小于1秒都视为1秒
+direction: 抖动方向；可填 horizontal(左右)，vertical（上下），diagonal1（左上右下），diagonal2（左下右上）
+time: 抖动时长，单位为毫秒
+speed: 抖动速度
+power: 抖动幅度
 callback: 抖动平息后的回调函数，可选
 
 visitFloor: fn(floorId?: string)
@@ -1292,6 +1367,16 @@ index: 套装编号，自然数
 removeItem: fn(itemId?: string, itemNum?: number)
 删除某个物品
 
+setEquip: fn(equipId: string, valueType: string, name: string, value: ?, operator?: string, prefix?: string)
+设置某个装备的属性并计入存档
+例如：core.setEquip('sword1', 'value', 'atk', 300, '+='); // 设置铁剑的攻击力数值再加300
+equipId: 装备id
+valueType: 增幅类型，只能是value（数值）或percentage（百分比）
+name: 要修改的属性名称，如atk
+value: 要修改到的属性数值
+operator: 操作符，可选，如+=表示在原始值上增加
+prefix: 独立开关前缀，一般不需要
+
 setItem: fn(itemId: string, itemNum?: number)
 设置某种道具的持有量
 例如：core.setItem('yellowKey', 3) // 设置黄钥匙为3把
@@ -1354,7 +1439,7 @@ loadOneSound: fn(name: string)
 addGlobalAnimate: fn(block?: block)
 添加一个全局动画
 
-animateBlock: fn(loc?: [number]|[[number]], type?: string, time?: number, callback?: fn())
+animateBlock: fn(loc?: [number]|[[number]], type?: string|number, time?: number, callback?: fn())
 显示/隐藏某个块时的动画效果
 
 animateSetBlock: fn(number: number|string, x: number, y: number, floorId?: string, time?: number, callback?: fn())
@@ -1498,6 +1583,9 @@ floorId: 地图id，不填视为当前地图
 showDisable: 隐藏点是否不返回null，true表示不返回null
 返回值：图块类型，即“地形、四帧动画、矮敌人、高敌人、道具、矮npc、高npc、自动元件、额外地形”之一
 
+getBlockFilter: fn(x: number, y: number, floorId?: string, showDisable?: bool) -> ?
+获得某个点的图块特效
+
 getBlockId: fn(x: number, y: number, floorId?: string, showDisable?: bool) -> string
 判定某个点的图块id
 例如：if(core.getBlockId(x1, y1) != 'greenSlime' && core.getBlockId(x2, y2) != 'redSlime') core.openDoor(x3, y3); // 一个简单的机关门事件，打败或炸掉这一对绿头怪和红头怪就开门
@@ -1517,6 +1605,12 @@ y: 纵坐标
 floorId: 地图id，不填视为当前地图
 showDisable: 隐藏点是否不返回null，true表示不返回null
 返回值：图块数字，该点无图块则返回null
+
+getBlockOpacity: fn(x: number, y: number, floorId?: string, showDisable?: bool) -> number
+判定某个点的不透明度。如果该点无图块则返回null。
+
+getFaceDownId: fn(block?: string|number|block) -> string
+获得某个图块对应行走图朝向向下的那一项的id；如果不存在行走图绑定则返回自身id。
 
 getFgMapArray: fn(floorId?: string, noCache?: bool) -> [[number]]
 生成前景层矩阵
@@ -1553,6 +1647,11 @@ getNumberById: fn(id: string) -> number
 例如：core.getNumberById('yellowWall'); // 1
 id: 图块id
 返回值：图块的数字，定义在project\maps.js（请注意和project\icons.js中的“图块索引”相区分！）
+
+getPlayingAnimates: fn(name?: string) -> [number]
+获得当前正在播放的所有（指定）动画的id列表
+name: 动画名；不填代表返回全部正在播放的动画
+返回值: 一个数组，每一项为一个正在播放的动画；可用core.stopAnimate停止播放。
 
 hideBgFgMap: fn(name?: string, loc?: [number]|[[number]], floorId?: string, callback?: fn())
 隐藏前景/背景地图
@@ -1593,7 +1692,7 @@ callback: 落地或淡出后的回调函数，可选
 loadFloor: fn(floorId?: string, map?: ?)
 从文件或存档中加载某个楼层
 
-loadMap: fn(data?: ?, floorId?: string)
+loadMap: fn(data?: ?, floorId?: string, flags?: ?)
 将存档中的地图信息重新读取出来
 
 moveBlock: fn(x: number, y: number, steps: [string], time?: number, keep?: bool, callback?: fn())
@@ -1652,13 +1751,21 @@ resizeMap: fn(floorId?: string)
 saveMap: fn(floorId?: string)
 将当前地图重新变成数字，以便于存档
 
-searchBlock: fn(id: string, floorId?: string, showDisable?: bool) -> [{floorId: string, index: number, x: number, y: number, block: block}]
+searchBlock: fn(id: string, floorId?: string|[string], showDisable?: bool) -> [{floorId: string, index: number, x: number, y: number, block: block}]
 搜索图块, 支持通配符和正则表达式
 例如：core.searchBlock('*Door'); // 搜索当前地图的所有门
 id: 图块id，支持星号表示任意多个（0个起）字符
-floorId: 地图id，不填视为当前地图
+floorId: 地图id或数组，不填视为当前地图
 showDisable: 隐藏点是否计入，true表示计入
 返回值：一个详尽的数组，一般只用到其长度
+
+searchBlockWithFilter: fn(blockFilter: fn(block: block) -> bool, floorId?: string|[string], showDisable?: bool): [{floorId: string, index: number, x: number, y: number, block: block}]
+根据给定的筛选函数搜索全部满足条件的图块
+例如：core.searchBlockWithFilter(function (block) { return block.event.id.endsWith('Door'); }); // 搜索当前地图的所有门
+blockFilter: 筛选函数，可接受block输入，应当返回一个boolean值
+floorId: 地图id或数组，不填视为当前地图
+showDisable: 隐藏点是否计入，true表示计入
+返回值：一个详尽的数组
 
 setBgFgBlock: fn(name: string, number: number|string, x: number, y: number, floorId?: string)
 转变图层块
@@ -1676,6 +1783,12 @@ number: 新图块的数字（也支持纯数字字符串如'1'）或id
 x: 横坐标
 y: 纵坐标
 floorId: 地图id，不填视为当前地图
+
+setBlockFilter: fn(filter?: ?, x?: number, y?: number, floorId?: string)
+设置某个点图块的特效
+
+setBlockOpacity: fn(opacity?: number, x?: number, y?: number, floorId?: string)
+设置某个点图块的不透明度
 
 setMapBlockDisabled: fn(floorId?: string, x?: number, y?: number, disabled?: bool)
 设置某个点图块的强制启用或禁用状态
@@ -1696,9 +1809,9 @@ showFloorImage: fn(loc?: [number]|[[number]], floorId?: string, callback?: fn())
 stairExists: fn(x: number, y: number, floorId?: string) -> bool
 某个点是否存在楼梯
 
-stopAnimate: fn(id: number, doCallback?: bool)
+stopAnimate: fn(id?: number, doCallback?: bool)
 立刻停止一个动画播放
-id: 播放动画的编号，即drawAnimate或drawHeroAnimate的返回值
+id: 播放动画的编号，即drawAnimate或drawHeroAnimate的返回值；不填视为停止所有动画
 doCallback: 是否执行该动画的回调函数
 
 terrainExists: fn(x: number, y: number, id?: string, floorId?: string) -> bool
@@ -1726,9 +1839,6 @@ name为画布名，可以是系统画布之一，也可以是任意自定义动�
 如果name也可以是'all'，若为all则为清空所有系统画布。
 参考资料：https://www.w3school.com.cn/tags/canvas_clearrect.asp
 
-clearTip: fn()
-清除左上角提示内容
-
 clearUI: fn()
 清空UI层内容
 
@@ -1750,8 +1860,9 @@ zIndex: 创建的纵向高度（关系到画布之间的覆盖），z值高的�
 deleteAllCanvas: fn()
 清空所有的自定义画布
 
-deleteCanvas: fn(name: string)
+deleteCanvas: fn(name: string|fn(name: string) -> bool)
 删除一个自定义画布
+name: 画布名；也可以传入一个filter对画布名进行筛选。
 
 drawArrow: fn(name: string|CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, style?: string, lineWidth?: number)
 在某个canvas上绘制一个箭头
@@ -1762,7 +1873,7 @@ drawBackground: fn(left: string, top: string, right: string, bottom: string, pos
 drawBook: fn(index?: ?)
 绘制怪物手册
 
-drawChoices: fn(content?: string, choices?: [?])
+drawChoices: fn(content?: string, choices?: [?], width?: number, ctx?: string|CanvasRenderingContext2D)
 绘制一个选项界面
 
 drawConfirmBox: fn(text: string, yesCallback?: fn(), noCallback?: fn())
@@ -1837,12 +1948,13 @@ fillArc: fn(name: string|CanvasRenderingContext2D, x: number, y: number, r: numb
 在某个canvas上绘制一个扇形
 参考资料：https://www.w3school.com.cn/tags/canvas_arc.asp
 
-fillBoldText: fn(name: string|CanvasRenderingContext2D, text: string, x: number, y: number, style?: string, strokeStyle?: string, font?: string)
+fillBoldText: fn(name: string|CanvasRenderingContext2D, text: string, x: number, y: number, style?: string, strokeStyle?: string, font?: string, maxWidth?: number)
 在某个画布上绘制一个描边文字
 text: 要绘制的文本
 style: 绘制的样式
 strokeStyle: 要绘制的描边颜色
 font: 绘制的字体
+maxWidth: 最大宽度，超过此宽度会自动放缩
 
 fillCircle: fn(name: string|CanvasRenderingContext2D, x: number, y: number, r: number, style?: string)
 在某个canvas上绘制一个圆
@@ -1870,7 +1982,7 @@ fillText: fn(name: string|CanvasRenderingContext2D, text: string, x: number, y: 
 text: 要绘制的文本
 style: 绘制的样式
 font: 绘制的字体
-最大宽度，超过此宽度会自动放缩
+maxWidth: 最大宽度，超过此宽度会自动放缩
 参考资料：https://www.w3school.com.cn/tags/canvas_filltext.asp
 
 getContextByName: fn(canvas: string|CanvasRenderingContext2D) -> CanvasRenderingContext2D
@@ -1886,23 +1998,31 @@ getToolboxItems: fn(cls: string) -> [string]
 loadCanvas: fn(name: string|CanvasRenderingContext2D)
 加载某个canvas状态
 
-relocateCanvas: fn(name: string, x: number, y: number)
+relocateCanvas: fn(name: string, x: number, y: number, useDelta: bool)
 重新定位一个自定义画布
 
 resizeCanvas: fn(name: string, x: number, y: number)
 重新设置一个自定义画布的大小
 
+rotateCanvas: fn(name: string, angle: number, centerX?: number, centerY?: number)
+设置一个自定义画布的旋转角度
+centerX, centerY: 旋转中心（以屏幕像素为基准）；不填视为图片正中心。
+
 saveCanvas: fn(name: string|CanvasRenderingContext2D)
 保存某个canvas状态
 
-setAlpha: fn(name: string|CanvasRenderingContext2D, alpha: number)
+setAlpha: fn(name: string|CanvasRenderingContext2D, alpha: number) -> number
 设置某个canvas接下来绘制的不透明度；不会影响已经绘制的内容
+返回设置之前画布的不透明度。
 如果需要修改画布本身的不透明度请使用setOpacity
 参考资料：https://www.w3school.com.cn/tags/canvas_globalalpha.asp
 
 setFillStyle: fn(name: string|CanvasRenderingContext2D, style: string)
 设置某个canvas的绘制属性（如颜色等）
 参考资料：https://www.w3school.com.cn/tags/canvas_fillstyle.asp
+
+setFilter: fn(name: string|CanvasRenderingContext2D, filter: any)
+设置某个canvas接下来绘制的filter
 
 setFont: fn(name: string|CanvasRenderingContext2D, font: string)
 设置某个canvas的文字字体
@@ -1933,7 +2053,7 @@ baseline: 可为alphabetic, top, hanging, middle, ideographic, bottom
 参考资料：https://www.w3school.com.cn/tags/canvas_textbaseline.asp
 
 splitLines: fn(name: string|CanvasRenderingContext2D, text: string, maxWidth?: number, font?: string)
-字符串自动换行的分割；具有标点禁则功能
+字符串自动换行的分割
 
 strokeArc: fn(name: string|CanvasRenderingContext2D, x: number, y: number, r: number, start: number, end: number, style?: string, lineWidth?: number)
 在某个canvas上绘制一段弧
@@ -1968,6 +2088,9 @@ textImage: fn(content: string, lineHeight?: number) -> image
 工具函数库，里面有各个样板中使用到的工具函数。
 
 ```text
+applyEasing: fn(mode?: string) -> fn(t: number) -> number
+获得变速移动曲线
+
 arrayToRGB: fn(color: [number]) -> string
 颜色数组转字符串
 例如：core.arrayToRGB([102, 204, 255]); // "#66ccff"

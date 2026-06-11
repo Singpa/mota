@@ -3,19 +3,36 @@
  * @author 秋橙 & tocque
  */
 
+interface TextContentConfig {
+    left?: number
+    top?: number
+    maxWidth?: number
+    color?: rgbarray | string
+    align?: 'left' | 'center' | 'right'
+    fontSize: number
+    lineHeight?: number
+    time?: number
+    font?: string
+    letterSpacing?: number
+    bold?: boolean
+    italic?: boolean
+}
+
 type direction = 'up' | 'down' | 'left' | 'right'
 type move = 'forward' | direction
 type loc = { direction: direction, x: number, y: number }
 type rgbarray = [number, number, number, number]
 
-type Block = { 
-    x: number, 
-    y: number, 
-    id: number, 
-    event: { 
-        cls: string, 
-        id: string, 
-        [key: string]: any 
+type Events = MotaAction[] | string
+
+type Block = {
+    x: number,
+    y: number,
+    id: number,
+    event: {
+        cls: string,
+        id: string,
+        [key: string]: any
     }
 }
 
@@ -35,7 +52,6 @@ type Animate = {
     frame: number
     frames: frameObj[][]
     images: HTMLImageElement[]
-    images_rev: HTMLImageElement[]
     ratio: number
     se: string
 }
@@ -46,7 +62,54 @@ type Floor = {
 }
 
 type ResolvedMap = {
-
+    floorId: string
+    afterBattle: { [x: string]: Events }
+    afterOpenDoor: { [x: string]: Events }
+    afterGetItem: { [x: string]: Events }
+    autoEvent: Event
+    beforeBattle: { [x: string]: Events }
+    canFlyFrom: boolean
+    canFltTo: boolean
+    canUseQuickShop: boolean
+    cannotMove: Object
+    cannotMoveIn: Object
+    cannotViewMap: boolean
+    changeFloor: {
+        [x: string]: {
+            floorId: ':before' | ':after' | ':now' | string
+            loc?: [number, number]
+            stair?: 'upFloor' | 'downFloor' | ':symmetry' | ':symmetry_x' | ':symmetry_y' | 'flyPoint'
+            direction?: 'left' | 'right' | 'up' | 'down' | ':left' | ':right' | ':back' | ':hero' | ':backhero'
+            time?: number
+            ignoreChangeFloor?: boolean
+        }
+    }
+    defaultGround: string
+    bgm: string | Array<string>
+    bgmap: number[][]
+    /** 事件层 */
+    map: number[][]
+    fgmap: number[][]
+    width: number
+    height: number
+    images: Array<{
+        canvas: 'bg' | 'auto' | 'fg'
+        name: string
+        x: number
+        y: number
+        reverse?: ':x' | ':y' | ':o'
+        disable?: boolean
+        sx?: number
+        sy?: number
+        w?: number
+        h?: number
+        frame?: number
+    }>
+    name: string
+    ratio: number
+    title: string
+    weather: [string, number]
+    blocks: Array<Block>
 }
 
 type Enemy = {
@@ -69,12 +132,12 @@ type Item = {
 }
 
 type Save = {
-    
+
 }
 
-type MotaAction = { 
-    type: string, 
-    [key: string]: any 
+type MotaAction = {
+    type: string,
+    [key: string]: any
 } | string
 
 type SystemFlags = {
@@ -88,7 +151,7 @@ type SystemFlags = {
 }
 
 type event = { type: string, [key: string]: any }
-    
+
 type step = 'up' | 'down' | 'left' | 'right' | 'forward' | 'backward'
 
 type HeroStatus = {
@@ -151,12 +214,46 @@ type gameStatus = {
     fgmaps: { [key: string]: number[][] }
     mapBlockObjs: { [key: string]: any }
     /** 显伤伤害 */
-    checkBlock: {}
-    damage: {}
+    checkBlock: {
+        ambush: { [x: string]: [number, number, string, direction] }
+        repulse: { [x: string]: [number, number, string, direction] }
+        damage: { [x: string]: number }
+        needCache: boolean
+        type: { [x: string]: { [x: string]: boolean } }
+        cache: {
+            [s: string]: {
+                hp_buff: number
+                atk_buff: number
+                def_buff: number
+                guards: Array<[number, number, string]>
+            }
+        }
+    }
+    damage: {
+        posX: number
+        posY: number
+        data: Array<{
+            [x: string]: {
+                text: string
+                px: number
+                py: number
+                color: string | Array<number>
+            }
+        }>
+        extraData: Array<{
+            [x: string]: {
+                text: string
+                px: number
+                py: number
+                color: string | Array<number>
+                alpha: number
+            }
+        }>
+    }
 
     lockControl: boolean
 
-    /** 勇士移动状态 */ 
+    /** 勇士移动状态 */
     heroMoving: number
     heroStop: boolean
 
@@ -183,13 +280,13 @@ type gameStatus = {
     ctrlDown: boolean
 
     // 路线&回放
-    route: [],
+    route: string[],
     replay: {
         replaying: boolean
         pausing: boolean
         /** 正在某段动画中 */animate: boolean
-        toReplay: []
-        totalList: []
+        toReplay: string[]
+        totalList: string[]
         speed: number
         steps: number
         save: []
@@ -198,13 +295,13 @@ type gameStatus = {
     // event事件
     shops: {}
     event: {
-        id: null
-        data: null
-        selection: null
-        ui: null
-        interval: null
+        id: string
+        data: any
+        selection: any
+        ui: any
+        interval: number
     }
-    autoEvents: []
+    autoEvents: Events
     textAttribute: {
         position: string
         offset: number
@@ -215,6 +312,8 @@ type gameStatus = {
         textfont: number
         bold: boolean
         time: number
+        letterSpacing: number
+        animateTime: number
     },
     globalAttribute: {
         equipName: string[]
@@ -247,50 +346,30 @@ declare class control {
     debug(): void
 
     /**
-     * 立刻刷新状态栏和地图显伤
+     * 刷新状态栏和地图显伤
+     * 2.9.1优化：非必须立刻执行的刷新（一般是伤害相关的除外）的延迟到下一动画帧执行
      * @param doNotCheckAutoEvents 是否不检查自动事件
+     * @param immediate 是否立刻刷新，而非延迟到下一动画帧刷新
      */
-    updateStatusBar(doNotCheckAutoEvents?: boolean): void
-
-    /**
-     * 设置某个自定义变量或flag
-     * @example core.setFlag('xyz', 2) // 设置变量xyz为2
-     * @param name 变量名
-     * @param value 要设置的值
-     */
-    setFlag(name: string, value: any): void
-
-    /**
-     * 获取某个自定义变量或flag
-     * @example core.getFlag('point', 2) // 获得变量point的值；如果该变量从未定义过则返回2
-     * @param name 变量名
-     * @param defaultValue 该变量不存在时返回的值。
-     * @returns 变量的值
-     */
-    getFlag(name: string, defaultValue: any): any
-
-    /**
-     * 返回是否存在某个变量且不为0。等价于 core.getFlag('xyz', 0)!=0
-     */
-    hasFlag(name: string): boolean
+    updateStatusBar(doNotCheckAutoEvents?: boolean, immediate?: boolean): void
 
     /** 删除某个flag/变量 */
     removeFlag(name: string): void
 
     /** 设置某个独立开关 */
-    setSwitch(x: number, y: number, floorId?: string, name: string, value: any): void
+    setSwitch(x: number, y: number, floorId: string, name: string, value: any): void
 
     /** 获得某个独立开关 */
-    getSwitch(x: number, y: number, floorId?: string, name: string, defaultValue: any): any
+    getSwitch(x: number, y: number, floorId: string, name: string, defaultValue: any): any
 
     /** 增加某个独立开关 */
-    addSwitch(x: number, y: number, floorId?: string, name: string, value: any): void
+    addSwitch(x: number, y: number, floorId: string, name: string, value: any): void
 
     /** 判定某个独立开关 */
-    hasSwitch(x: number, y: number, floorId?: string, name: string): boolean
+    hasSwitch(x: number, y: number, floorId: string, name: string): boolean
 
     /** 删除独立开关 */
-    removeSwitch(x: number, y: number, floorId?: string, name: string): boolean
+    removeSwitch(x: number, y: number, floorId: string, name: string): boolean
 
     /** 设置大地图的偏移量 */
     setGameCanvasTranslate(canvasId: string, x: number, y: number): void
@@ -303,7 +382,7 @@ declare class control {
 
     /** 回放下一个操作 */
     replay(): void
-    
+
     /**
      * 进入标题画面
      * @example core.showStartAnimate(); // 重启游戏但不重置bgm
@@ -311,14 +390,14 @@ declare class control {
      * @param callback 可选，完全亮屏后的回调函数
      */
     showStartAnimate(noAnimate?: boolean, callback?: () => void): void
-    
+
     /**
      * 淡出标题画面
      * @example core.hideStartAnimate(core.startGame); // 淡出标题画面并开始新游戏，跳过难度选择
      * @param callback 标题画面完全淡出后的回调函数
      */
     hideStartAnimate(callback?: () => void): void
-    
+
     /**
      * 半自动寻路，用于鼠标或手指拖动
      * @example core.setAutomaticRoute(0, 0, [{direction: "right", x: 4, y: 9}, {direction: "right", x: 5, y: 9}, {direction: "right", x: 6, y: 9}, {direction: "up", x: 6, y: 8}]);
@@ -327,21 +406,21 @@ declare class control {
      * @param stepPostfix 拖动轨迹的数组表示，每项为一步的方向和目标点。
      */
     setAutomaticRoute(destX: number, destY: number, stepPostfix: Array<{ direction: direction, x: number, y: number }>): void
-    
+
     /**
      * 连续行走
      * @example core.setAutoHeroMove([{direction: "up", step: 1}, {direction: "left", step: 3}, {direction: "right", step: 3}, {direction: "up", step: 9}]); // 上左左左右右右上9
      * @param steps 压缩的步伐数组，每项表示朝某方向走多少步
      */
     setAutoHeroMove(steps: Array<{ direction: direction, step: number }>): void
-    
+
     /**
      * 尝试前进一步，如果面前不可被踏入就会直接触发该点事件
      * @example core.moveAction(core.doAction); // 尝试前进一步，然后继续事件处理。常用于在事件流中让主角像自由行动时一样前进一步，可以照常触发moveOneStep（跑毒和计步）和面前的事件（包括但不限于阻激夹域捕）
      * @param callback 走一步后的回调函数，可选
      */
     moveAction(callback?: () => void): void
-    
+
     /**
      * 连续前进，不撞南墙不回头
      * @example core.moveHero(); // 连续前进
@@ -349,21 +428,21 @@ declare class control {
      * @param callback 可选，如果设置了就只走一步
      */
     moveHero(direction?: direction, callback?: () => void): void
-    
+
     /**
      * 等待主角停下
      * @example core.waitHeroToStop(core.vibrate); // 等待主角停下，然后视野左右抖动1秒
      * @param callback 主角停止后的回调函数
      */
     waitHeroToStop(callback?: () => void): void
-    
+
     /**
      * 主角转向并计入录像，不会导致跟随者聚集，会导致视野重置到以主角为中心
      * @example core.turnHero(); // 主角顺时针旋转90°，即单击主角或按下Z键的效果
      * @param direction 主角的新朝向，可为 up, down, left, right, :left, :right, :back 七种之一
      */
     turnHero(direction?: direction): void
-    
+
     /**
      * 尝试瞬移，如果该点有图块/事件/阻激夹域捕则会瞬移到它旁边再走一步（不可踏入的话当然还是触发该点事件），这一步的方向优先和瞬移前主角的朝向一致
      * @example core.tryMoveDirectly(6, 0); // 尝试瞬移到地图顶部的正中央，以样板0层为例，实际效果是瞬移到了上楼梯下面一格然后向上走一步并触发上楼事件
@@ -371,7 +450,7 @@ declare class control {
      * @param destY 目标点的纵坐标
      */
     tryMoveDirectly(destX: number, destY: number): void
-    
+
     /**
      * 绘制主角和跟随者并重置视野到以主角为中心
      * @example core.drawHero(); // 原地绘制主角的静止帧
@@ -380,21 +459,21 @@ declare class control {
      * @param frame 绘制第几帧
      */
     drawHero(status?: 'stop' | 'leftFoot' | 'rightFoot', offset?: number, frame?: number): void
-    
+
     /**
      * 获取主角面前第n格的横坐标
      * @example core.closeDoor(core.nextX(), core.nextY(), 'yellowDoor', core.turnHero); // 在主角面前关上一扇黄门，然后主角顺时针旋转90°
      * @param n 目标格与主角的距离，面前为正数，背后为负数，脚下为0，不填视为1
      */
     nextX(n?: number): number
-    
+
     /**
      * 获取主角面前第n格的纵坐标
      * @example core.jumpHero(core.nextX(2), core.nextY(2)); // 主角向前跃过一格，即跳跃靴道具的使用效果
      * @param n 目标格与主角的距离，面前为正数，背后为负数，脚下为0，不填视为1
      */
     nextY(n?: number): number
-    
+
     /**
      * 判定主角是否身处某个点的锯齿领域(取曼哈顿距离)
      * @example core.nearHero(6, 6, 6); // 判定主角是否身处点（6，6）的半径为6的锯齿领域
@@ -403,15 +482,15 @@ declare class control {
      * @param n 领域的半径，不填视为1
      */
     nearHero(x: number, y: number, n?: number): boolean
-    
+
     /**
-     * 重算并绘制地图显伤
+     * 请不要直接使用该函数，请使用core.updateStatusBar()代替！重算并绘制地图显伤
      * @example core.updateDamage(); // 更新当前地图的显伤，绘制在显伤层（废话）
      * @param floorId 地图id，不填视为当前地图。预览地图时填写
      * @param ctx 绘制到的画布，如果填写了就会画在该画布而不是显伤层
      */
     updateDamage(floorId?: string, ctx?: CanvasRenderingContext2D): void
-    
+
     /** 仅重绘地图显伤 */
     drawDamage(ctx?: CanvasRenderingContext2D): void
 
@@ -422,7 +501,7 @@ declare class control {
      * @param value 属性的新值
      */
     setStatus<K extends keyof HeroStatus>(name: K, value: HeroStatus[K]): void
-    
+
     /**
      * 增减主角的某个属性，等价于core.setStatus(name, core.getStatus(name) + value)
      * @example core.addStatus('name', '酱'); // 在主角的名字后加一个“酱”字
@@ -430,7 +509,7 @@ declare class control {
      * @param value 属性的增量，请注意旧量和增量中只要有一个是字符串就会把两者连起来成为一个更长的字符串
      */
     addStatus<K extends keyof HeroStatus>(name: K, value: HeroStatus[K]): void
-    
+
     /**
      * 读取主角的某个属性，不包括百分比修正
      * @example core.getStatus('loc'); // 读取主角的坐标和朝向
@@ -438,17 +517,17 @@ declare class control {
      * @returns 属性值
      */
     getStatus<K extends keyof HeroStatus>(name: K): HeroStatus[K]
-    
+
     /**
      * 计算主角的某个属性，包括百分比修正
      * @example core.getRealStatus('atk'); // 计算主角的攻击力，包括百分比修正。战斗使用的就是这个值
      * @param name 属性的英文名，请注意只能用于数值类属性哦，否则乘法会得到NaN
      */
-    getRealStatus(name: string): any
+    getRealStatus<K extends keyof HeroStatus>(name: K): HeroStatus[K]
 
     /** 获得某个状态的名字 */
-    getStatusLabel(name: string): string
-    
+    getStatusLabel<K extends keyof HeroStatus>(name: K): string
+
     /**
      * 设置主角某个属性的百分比修正倍率，初始值为1，
      * 倍率存放在flag: '__'+name+'_buff__' 中
@@ -456,30 +535,30 @@ declare class control {
      * @param name 属性的英文名，请注意只能用于数值类属性哦，否则随后的乘法会得到NaN
      * @param value 新的百分比修正倍率，不填（效果上）视为1
      */
-    setBuff(name: string, value?: number): void
-    
+    setBuff<K extends keyof HeroStatus>(name: K, value?: HeroStatus[K]): void
+
     /**
      * 增减主角某个属性的百分比修正倍率，加减法叠加和抵消。等价于 core.setBuff(name, core.getBuff(name) + value)
      * @example core.addBuff('atk', -0.1); // 主角获得一层“攻击力减一成”的负面效果
      * @param name 属性的英文名，请注意只能用于数值类属性哦，否则随后的乘法会得到NaN
      * @param value 倍率的增量
      */
-    addBuff(name: string, value: number): void
-    
+    addBuff<K extends keyof HeroStatus>(name: K, value: HeroStatus[K]): void
+
     /**
      * 读取主角某个属性的百分比修正倍率，初始值为1
      * @example core.getBuff('atk'); // 主角当前能发挥出多大比例的攻击力
      * @param name 属性的英文名
      */
-    getBuff(name: string): number
+    getBuff<K extends keyof HeroStatus>(name: HeroStatus[K]): number
 
     /**
      * 获得或移除毒衰咒效果
      * @param action 获得还是移除，'get'为获得，'remove'为移除
      * @param type 要获得或移除的毒衰咒效果
      */
-    triggerDebuff(action: string, type: string|string[]): void
-    
+    triggerDebuff(action: string, type: string | string[]): void
+
     /**
      * 设置勇士位置
      * 值得注意的是，这句话虽然会使勇士改变位置，但并不会使界面重新绘制；
@@ -491,7 +570,7 @@ declare class control {
      */
     setHeroLoc(name: 'x' | 'y', value: number, noGather?: boolean): void
     setHeroLoc(name: 'direction', value: direction, noGather?: boolean): void
-    
+
     /**
      * 读取主角的位置和/或朝向
      * @example core.getHeroLoc(); // 读取主角的位置和朝向
@@ -501,7 +580,7 @@ declare class control {
     getHeroLoc(): { x: number, y: number, direction: direction }
     getHeroLoc(name: 'x' | 'y'): number
     getHeroLoc(name: 'direction'): direction
-    
+
     /**
      * 根据级别的数字获取对应的名称，后者定义在全塔属性
      * @example core.getLvName(); // 获取主角当前级别的名称，如“下级佣兵”
@@ -509,7 +588,14 @@ declare class control {
      * @returns 级别的名称，如果不存在就还是返回数字
      */
     getLvName(lv?: number): string | number
-    
+
+    /**
+     * 获得下次升级需要的经验值。
+     * 升级扣除模式下会返回经验差值；非扣除模式下会返回总共需要的经验值。
+     * 如果无法进行下次升级，返回null。
+     */
+    getNextLvUpNeed(): number
+
     /**
      * 设置一个flag变量
      * @example core.setFlag('poison', true); // 令主角中毒
@@ -517,7 +603,7 @@ declare class control {
      * @param value 变量的新值，不填或填null视为删除
      */
     setFlag(name: string, value?: any): void
-    
+
     /**
      * 增减一个flag变量，等价于 core.setFlag(name, core.getFlag(name, 0) + value)
      * @example core.addFlag('hatred', 1); // 增加1点仇恨值
@@ -525,7 +611,7 @@ declare class control {
      * @param value 变量的增量
      */
     addFlag(name: string, value: number | string): void
-    
+
     /**
      * 读取一个flag变量
      * @param name 变量名，支持中文
@@ -533,7 +619,7 @@ declare class control {
      * @returns flags[name] ?? defaultValue
      */
     getFlag(name: string, defaultValue?: any): any
-    
+
     /**
      * 判定一个flag变量是否存在且不为false、0、''、null、undefined和NaN
      * @example core.hasFlag('poison'); // 判断主角当前是否中毒
@@ -541,15 +627,21 @@ declare class control {
      * @returns !!core.getFlag(name)
      */
     hasFlag(name: string): boolean
-    
+
     /**
      * 设置天气，不计入存档。如需长期生效请使用core.events._action_setWeather()函数
      * @example core.setWeather('fog', 10); // 设置十级大雾天
-     * @param type 新天气的类型，不填视为晴天
+     * @param type 新天气的类型，不填视为无天气
      * @param level 新天气（晴天除外）的级别，必须为不大于10的正整数，不填视为5
      */
-    setWeather(type?: 'rain' | 'snow' | 'fog' | 'cloud', level?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10): void
-    
+    setWeather(type?: 'rain' | 'snow' | 'sun' | 'fog' | 'cloud' | string, level?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10): void
+
+    /** 注册一个天气 */
+    registerWeather(name: string, initFunc: (level: number) => void, frameFunc?: (timestamp: number, level: number) => void): void
+
+    /** 注销一个天气 */
+    unregisterWeather(name: string): void;
+
     /**
      * 更改画面色调，不计入存档。如需长期生效请使用core.events._action_setCurtain()函数
      * @example core.setCurtain(); // 恢复画面色调，用时四分之三秒
@@ -557,8 +649,8 @@ declare class control {
      * @param time 渐变时间，单位为毫秒。不填视为750ms，负数视为0（无渐变，立即更改）
      * @param callback 更改完毕后的回调函数，可选。事件流中常取core.doAction
      */
-    setCurtain(color?: [number, number, number, number?], time?: number, callback?: () => void): void
-    
+    setCurtain(color?: [number, number, number, number?], time?: number, moveMode?: string, callback?: () => void): void
+
     /**
      * 画面闪烁
      * @example core.screenFlash([255, 0, 0, 1], 3); // 红屏一闪而过
@@ -567,8 +659,8 @@ declare class control {
      * @param times 闪烁的总次数，不填或填0都视为1
      * @param callback 闪烁全部完毕后的回调函数，可选
      */
-    screenFlash(color: [number, number, number, number], time: number, times?: number, callback?: () => void): void
-    
+    screenFlash(color: [number, number, number, number?], time: number, times?: number, moveMode?: string, callback?: () => void): void
+
     /**
      * 播放背景音乐，中途开播但不计入存档且只会持续到下次场景切换。如需长期生效请将背景音乐的文件名赋值给flags.__bgm__
      * @example core.playBgm('bgm.mp3', 30); // 播放bgm.mp3，并跳过前半分钟
@@ -582,7 +674,7 @@ declare class control {
      * @param name 名称，可用来作为注销使用
      * @param needPlaying 是否只在游戏运行时才执行（在标题界面不执行）
      * @param func 要执行的函数，或插件中的函数名；可接受timestamp（从页面加载完毕到当前所经过的时间）作为参数
-     */ 
+     */
     registerAnimationFrame(name: string, needPlaying: boolean, func?: (timestamp: number) => void): void
 
     /** 注销一个animationFrame */
@@ -609,9 +701,6 @@ declare class control {
     /** 清空剩下的自动寻路列表 */
     clearContinueAutomaticRoute(callback?: () => any): void
 
-    /** 显示离散的寻路点 */
-    fillPosWithPoint(pos?: any): void
-
     /** 设置行走的效果动画 */
     setHeroMoveInterval(callback?: () => any): void
 
@@ -624,20 +713,20 @@ declare class control {
     /** 瞬间移动 */
     moveDirectly(destX?: any, destY?: any, ignoreSteps?: any): void
 
-    /** 改变勇士的显隐状态 */
-    triggerHero(type?: 'show' | 'hide', time?: any, callback?: () => any): void
+    /** 改变勇士的不透明度 */
+    setHeroOpacity(opacity?: number, moveMode?: string, time?: any, callback?: () => any): void
 
     /** 加减画布偏移 */
     addGameCanvasTranslate(x?: number, y?: number): void
 
     /**
      * 设置视野范围 
-     * x,y: 左上角相对大地图的像素坐标，不需要为32倍数
+     * px,py: 左上角相对大地图的像素坐标，不需要为32倍数
      */
-    setViewport(x?: number, y?: number): void
+    setViewport(px?: number, py?: number): void
 
     /** 移动视野范围 */
-    moveViewport(steps?: any, time?: number, callback?: () => any): void
+    moveViewport(x: number, y: number, moveMode?: string, time?: number, callback?: () => any): void
 
     /** 更新跟随者坐标 */
     updateFollowers(): void
@@ -765,6 +854,9 @@ declare class control {
     /** 恢复背景音乐的播放 */
     resumeBgm(resumeTime?: number): void
 
+    /** 设置背景音乐的播放速度和音调 */
+    setBgmSpeed(speed: number, usePitch?: boolean): void
+
     /** 设置音乐图标的显隐状态 */
     setMusicBtn(): void
 
@@ -772,13 +864,19 @@ declare class control {
     triggerBgm(): void
 
     /** 播放一个音效 */
-    playSound(sound: string): void
+    playSound(sound: string, pitch?: number, callback?: () => any): number
 
-    /** 停止所有音频 */
-    stopSound(): void
+    /** 停止（所有）音频 */
+    stopSound(id?: number): void
+
+    /** 获得正在播放的所有（指定）音效的id列表 */
+    getPlayingSounds(name?: string): Array<number>
 
     /** 检查bgm状态 */
     checkBgm(): void
+
+    /** 设置屏幕放缩 */
+    setDisplayScale(delta: number): void
 
     /** 清空状态栏 */
     clearStatusBar(): void
@@ -821,7 +919,7 @@ declare class events {
      * @param callback 回调函数，可选
      */
     startGame(hard: string, seed: number, route: string, callback?: () => void): void
-    
+
     /**
      * 游戏结束
      * @example core.gameOver(); // 游戏失败
@@ -830,7 +928,7 @@ declare class events {
      * @param norank true表示不计入榜单，可选
      */
     gameOver(ending?: string, fromReplay?: boolean, norank?: boolean): void
-    
+
     /**
      * 战斗，如果填写了坐标就会删除该点的敌人并触发战后事件
      * @example core.battle('greenSlime'); // 和从天而降的绿头怪战斗（如果打得过）
@@ -841,7 +939,7 @@ declare class events {
      * @param callback 回调函数，可选
      */
     battle(id: string, x?: number, y?: number, force?: boolean, callback?: () => void): void
-    
+
     /**
      * 开门（包括三种基础墙）
      * @example core.openDoor(0, 0, true, core.jumpHero); // 打开左上角的门，需要钥匙，然后主角原地跳跃半秒
@@ -851,7 +949,7 @@ declare class events {
      * @param callback 门完全打开后或打不开时的回调函数，可选
      */
     openDoor(x: number, y: number, needKey?: boolean, callback?: () => void): void
-    
+
     /**
      * 获得道具并提示，如果填写了坐标就会删除该点的该道具
      * @example core.getItem('book'); // 获得敌人手册并提示
@@ -862,7 +960,7 @@ declare class events {
      * @param callback 回调函数，可选
      */
     getItem(id: string, num?: number, x?: number, y?: number, callback?: () => void): void
-    
+
     /**
      * 场景切换
      * @example core.changeFloor('MT0'); // 传送到主塔0层，主角坐标和朝向不变，黑屏时间取用户设置值
@@ -873,14 +971,14 @@ declare class events {
      * @param callback 黑屏结束后的回调函数，可选
      */
     changeFloor(floorId: string, stair?: string, heroLoc?: { x?: number, y?: number, direction?: direction }, time?: number, callback?: () => void): void
-    
+
     /**
      * 执行下一个事件指令，常作为回调
-     * @example core.setCurtain([0,0,0,1], undefined, core.doAction); // 事件中的原生脚本，配合勾选“不自动执行下一个事件”来达到此改变色调只持续到下次场景切换的效果
+     * @example core.setCurtain([0,0,0,1], undefined, null, core.doAction); // 事件中的原生脚本，配合勾选“不自动执行下一个事件”来达到此改变色调只持续到下次场景切换的效果
      * @param keepUI true表示不清除UI画布和选择光标
      */
     doAction(keepUI?: true): void
-    
+
     /**
      * 插入一段事件；此项不可插入公共事件，请用 core.insertCommonEvent
      * @example core.insertAction('一段文字'); // 插入一个显示文章
@@ -890,18 +988,28 @@ declare class events {
      * @param callback 新的回调函数，可选
      * @param addToLast 插入的位置，true表示插入到末尾，否则插入到开头
      */
-    insertAction(action: string | MotaAction | MotaAction[], x?: number, y?: number, callback?: () => void, addToLast?: boolean): void
-    
+    insertAction(action: Events, x?: number, y?: number, callback?: () => void, addToLast?: boolean): void
+
     /**
      * 设置一项敌人属性并计入存档
      * @example core.setEnemy('greenSlime', 'def', 0); // 把绿头怪的防御设为0
      * @param id 敌人id
      * @param name 属性的英文缩写
      * @param value 属性的新值，可选
+     * @param operator 操作符，可选
      * @param prefix 独立开关前缀，一般不需要，下同
      */
-    setEnemy<K extends keyof Enemy>(id: string, name: K, value?: Enemy[K], prefix?: string): void
-    
+    setEnemy<K extends keyof Enemy>(id: string, name: K, value?: Enemy[K], operator?: string, prefix?: string): void
+
+    /** 设置某个点的敌人属性 */
+    setEnemyOnPoint<K extends keyof Enemy>(x: number, y: number, floorId: string, name: K, value?: Enemy[K], operator?: string, prefix?: string): void
+
+    /** 重置某个点的敌人属性 */
+    resetEnemyOnPoint(x: number, y: number, floorId?: string): void
+
+    /** 将某个点已经设置的敌人属性移动到其他点 */
+    moveEnemyOnPoint(fromX: number, fromY: number, toX: number, toY: number, floorId?: string): void
+
     /**
      * 设置一项楼层属性并刷新状态栏
      * @example core.setFloorInfo('ratio', 2, 'MT0'); // 把主塔0层的血瓶和宝石变为双倍效果
@@ -911,7 +1019,7 @@ declare class events {
      * @param prefix 独立开关前缀，一般不需要，下同
      */
     setFloorInfo<K extends keyof Floor>(name: K, values?: Floor[K] | boolean | number | string | [number, number] | [string, number?] | Array<string | [number, number, string, number?, number?]>, floorId?: string, prefix?: string): void
-    
+
     /**
      * 设置一个系统开关
      * @example core.setGlobalFlag('steelDoorWithoutKey', true); // 使全塔的所有铁门都不再需要钥匙就能打开
@@ -919,7 +1027,7 @@ declare class events {
      * @param value 开关的新值，您可以用!core.flags[name]简单地表示将此开关反转
      */
     setGlobalFlag(name: keyof SystemFlags, value: boolean): void
-    
+
     /**
      * 关门，目标点必须为空地
      * @example core.closeDoor(0, 0, 'yellowWall', core.jumpHero); // 在左上角关掉一堵黄墙，然后主角原地跳跃半秒
@@ -929,7 +1037,7 @@ declare class events {
      * @param callback 门完全关上后的回调函数，可选
      */
     closeDoor(x: number, y: number, id: string, callback?: () => void): void
-    
+
     /**
      * 显示一张图片
      * @example core.showImage(1, core.material.images.images['winskin.png'], [0,0,128,128], [0,0,416,416], 0.5, 1000); // 裁剪winskin.png的最左边128×128px，放大到铺满整个视野，1秒内淡入到50%透明，编号为1
@@ -942,7 +1050,7 @@ declare class events {
      * @param callback 图片完全显示出来后的回调函数，可选
      */
     showImage(code: number, image: string | HTMLImageElement, sloc?: Array<number>, loc?: Array<number>, opacityVal?: number, time?: number, callback?: () => void): void
-    
+
     /**
      * 隐藏一张图片
      * @example core.hideImage(1, 1000, core.jumpHero); // 1秒内淡出1号图片，然后主角原地跳跃半秒
@@ -951,18 +1059,33 @@ declare class events {
      * @param callback 图片完全消失后的回调函数，可选
      */
     hideImage(code: number, time?: number, callback?: () => void): void
-    
+
     /**
      * 移动一张图片并/或改变其透明度
-     * @example core.moveImage(1, undefined, 0.5); // 1秒内把1号图片变为50%透明
+     * @example core.moveImage(1, null, 0.5); // 1秒内把1号图片变为50%透明
      * @param code 图片编号
      * @param to 新的左上角坐标，省略表示原地改变透明度
      * @param opacityVal 新的透明度，省略表示不变
+     * @param moveMode 移动模式
      * @param time 移动用时，单位为毫秒。不填视为1秒
      * @param callback 图片移动完毕后的回调函数，可选
      */
-    moveImage(code: number, to?: [number?, number?], opacityVal?: number, time?: number, callback?: () => void): void
-    
+    moveImage(code: number, to?: [number?, number?], opacityVal?: number, moveMode?: string, time?: number, callback?: () => void): void
+
+    /**
+     * 旋转一张图片
+     * @param code 图片编号
+     * @param center 旋转中心像素（以屏幕为基准）；不填视为图片本身中心
+     * @param angle 旋转角度；正数为顺时针，负数为逆时针
+     * @param moveMode 旋转模式
+     * @param time 移动用时，单位为毫秒。不填视为1秒
+     * @param callback 图片移动完毕后的回调函数，可选
+     */
+    rotateImage(code: number, center?: [number?, number?], angle?: number, moveMode?: string, time?: number, callback?: () => void): void
+
+    /** 放缩一张图片 */
+    scaleImage(code: number, center?: [Number?, number?], scale?: number, moveMode?: string, time?: number, callback?: () => void): void
+
     /**
      * 绘制一张动图或擦除所有动图
      * @example core.showGif(); // 擦除所有动图
@@ -971,7 +1094,7 @@ declare class events {
      * @param y 动图在视野中的左上角纵坐标
      */
     showGif(name?: string, x?: number, y?: number): void
-    
+
     /**
      * 调节bgm的音量
      * @example core.setVolume(0, 100, core.jumpHero); // 0.1秒内淡出bgm，然后主角原地跳跃半秒
@@ -980,14 +1103,17 @@ declare class events {
      * @param callback 渐变完成后的回调函数，可选
      */
     setVolume(value: number, time?: number, callback?: () => void): void
-    
+
     /**
-     * 视野左右抖动
+     * 视野抖动
      * @example core.vibrate(); // 视野左右抖动1秒
-     * @param time 抖动时长，单位为毫秒。必须为半秒的倍数，不填或小于1秒都视为1秒
+     * @param direction 抖动方向
+     * @param time 抖动时长，单位为毫秒
+     * @param speed 抖动速度
+     * @param power 抖动幅度
      * @param callback 抖动平息后的回调函数，可选
      */
-    vibrate(time?: number, callback?: () => void): void
+    vibrate(direction?: string, time?: number, speed?: number, power?: number, callback?: () => void): void
 
     /**
      * 强制移动主角（包括后退），这个函数的作者已经看不懂这个函数了
@@ -997,7 +1123,7 @@ declare class events {
      * @param callback 移动完毕后的回调函数，可选
      */
     eventMoveHero(steps: step[], time?: number, callback?: () => void): void
-    
+
     /**
      * 主角跳跃，跳跃勇士。ex和ey为目标点的坐标，可以为null表示原地跳跃。time为总跳跃时间。
      * @example core.jumpHero(); // 主角原地跳跃半秒
@@ -1007,7 +1133,7 @@ declare class events {
      * @param callback 跳跃完毕后的回调函数，可选
      */
     jumpHero(ex?: number, ey?: number, time?: number, callback?: () => void): void
-    
+
     /**
      * 更改主角行走图
      * @example core.setHeroIcon('npc48.png', true); // 把主角从阳光变成样板0层左下角的小姐姐，但不立即刷新
@@ -1015,7 +1141,7 @@ declare class events {
      * @param noDraw true表示不立即刷新（刷新会导致大地图下视野重置到以主角为中心）
      */
     setHeroIcon(name: string, noDraw?: boolean): void
-    
+
     /**
      * 尝试使用一个道具
      * @example core.tryUseItem('pickaxe'); // 尝试使用破墙镐
@@ -1024,7 +1150,7 @@ declare class events {
     tryUseItem(itemId: string): void
 
     /** 初始化游戏 */
-    resetGame(hero?: any, hard?: any, floorId?: string, maps?: any, values?: any): void
+    resetGame(hero?: HeroStatus, hard?: any, floorId?: string, maps?: any, values?: any): void
 
     /** 游戏获胜事件 */
     win(reason?: string, norank?: boolean, noexit?: boolean): void
@@ -1181,8 +1307,11 @@ declare class events {
     /** 点击设置按钮时的操作 */
     openSettings(fromUserAction?: boolean): void
 
-    /** 当前是否有未处理完毕的异步事件 */
+    /** 当前是否有未处理完毕的异步事件（不包含动画和音效） */
     hasAsync(): boolean
+
+    /** 立刻停止所有异步事件 */
+    stopAsync(): void
 
     /** 
      * 跟随
@@ -1204,6 +1333,18 @@ declare class events {
 
     /** 设置全塔属性 */
     setGlobalAttribute(name: string, value: any): void
+
+    /** 设置剧情文本的属性 */
+    setTextAttribute(data: any): void
+
+    /** 清除对话框 */
+    clearTextBox(code: number): void
+
+    /** 移动对话框 */
+    moveTextBox(code: number, loc: [number], relative: boolean, moveMode?: string, time?: number, callback?: () => any): void
+
+    /** 设置文件别名 */
+    setNameMap(name: string, value?: string): void
 
     /** 检查升级事件 */
     checkLvUp(): void
@@ -1252,7 +1393,7 @@ declare class actions {
     onup(loc: number[]): void
 
     /** 具体点击屏幕上(x,y)点时，执行的操作 */
-    onclick(x: number, y: number, stepPostfix?: any): void
+    onclick(x: number, y: number, px: number, py: number, stepPostfix?: any): void
 
     /** 滑动鼠标滚轮时的操作 */
     onmousewheel(direct: 1 | -1): void
@@ -1261,7 +1402,7 @@ declare class actions {
     keyDownCtrl(): void
 
     /** 长按 */
-    longClick(x: number, y: number, fromEvent?: boolean): void
+    longClick(x: number, y: number, px: number, py: number, fromEvent?: boolean): void
 
     /** 点击自绘状态栏时 */
     onStatusBarClick(e?: MouseEvent): void
@@ -1295,6 +1436,9 @@ declare class enemys {
      * @returns 属性的介绍，以属性名加中文冒号开头
      */
     getSpecialHint(enemy: string | Enemy, special: number): string
+
+    /** 获得某个敌人的某项属性值 */
+    getEnemyValue(enemy: string | Enemy, name: string, x?: number, y?: number, floorId?: string): any
 
     /**
      * 判定主角当前能否打败某只敌人
@@ -1377,19 +1521,40 @@ declare class enemys {
     getEnemys(): any
 
     /** 获得所有特殊属性定义 */
-    getSpecials(): void
+    getSpecials(): [number, string | ((enemy: Enemy) => string), string | ((enemy: Enemy) => string),
+        string | [number, number, number, number?], number?][]
 
     /** 获得所有特殊属性的颜色 */
-    getSpecialColor(enemy: string | Enemy): void
+    getSpecialColor(enemy: string | Enemy): Array<string | [number, number, number, number?]>
 
     /** 获得所有特殊属性的额外标记 */
-    getSpecialFlag(enemy: string | Enemy): void
+    getSpecialFlag(enemy: string | Enemy): Array<number>
 
     /** 获得怪物真实属性 */
-    getEnemyInfo(enemy: string | Enemy, hero?: any, x?: number, y?: number, floorId?: string): void
+    getEnemyInfo(enemy: string | Enemy, hero?: any, x?: number, y?: number, floorId?: string): {
+        hp: number
+        def: number
+        atk: number
+        money: number
+        exp: number
+        point: number
+        special: number | number[]
+        guards: Array<[number, number, string]>
+        [x: string]: any
+    }
 
     /** 获得战斗伤害信息（实际伤害计算函数） */
-    getDamageInfo(enemy: string | Enemy, hero?: any, x?: number, y?: number, floorId?: string): void
+    getDamageInfo(enemy: string | Enemy, hero?: any, x?: number, y?: number, floorId?: string): {
+        mon_hp: number
+        mon_atk: number
+        mon_def: number
+        init_damage: number
+        per_damage: number
+        hero_per_damage: number
+        turn: number
+        damage: number
+        [x: string]: any
+    }
 }
 
 /** @file maps.js负责一切和地图相关的处理内容 */
@@ -1402,7 +1567,7 @@ declare class maps {
      * @returns 图块的数字，定义在project\maps.js（请注意和project\icons.js中的“图块索引”相区分！）
      */
     getNumberById(id: string): number
-    
+
     /**
      * 生成事件层矩阵
      * @example core.getMapArray('MT0'); // 生成主塔0层的事件层矩阵，隐藏的图块视为0
@@ -1414,7 +1579,7 @@ declare class maps {
 
     /** 判定图块的事件层数字；不存在为0 */
     getMapNumber(floorId?: string, noCache?: boolean): number
-    
+
     /**
      * 生成背景层矩阵
      * @example core.getBgMapArray('MT0'); // 生成主塔0层的背景层矩阵，使用缓存
@@ -1423,7 +1588,7 @@ declare class maps {
      * @returns 背景层矩阵，注意对其阵元的访问是[y][x]
      */
     getBgMapArray(floorId?: string, noCache?: boolean): number[][]
-    
+
     /**
      * 生成前景层矩阵
      * @example core.getFgMapArray('MT0'); // 生成主塔0层的前景层矩阵，使用缓存
@@ -1432,7 +1597,7 @@ declare class maps {
      * @returns 前景层矩阵，注意对其阵元的访问是[y][x]
      */
     getFgMapArray(floorId?: string, noCache?: boolean): number[][]
-    
+
     /**
      * 判定背景层的一个位置是什么
      * @example core.getBgNumber(); // 判断主角脚下的背景层图块的数字
@@ -1442,7 +1607,7 @@ declare class maps {
      * @param 可选，true表示不使用缓存而强制重算
      */
     getBgNumber(x?: number, y?: number, floorId?: string, noCache?: boolean): number
-    
+
     /**
      * 判定前景层的一个位置是什么
      * @example core.getFgNumber(); // 判断主角脚下的前景层图块的数字
@@ -1452,7 +1617,7 @@ declare class maps {
      * @param 可选，true表示不使用缓存而强制重算
      */
     getFgNumber(x?: number, y?: number, floorId?: string, noCache?: boolean): number
-    
+
     /**
      * 可通行性判定
      * @example core.generateMovableArray(); // 判断当前地图主角从各点能向何方向移动
@@ -1460,7 +1625,7 @@ declare class maps {
      * @returns 从各点可移动方向的三维数组
      */
     generateMovableArray(floorId?: string): Array<Array<Array<direction>>>
-    
+
     /**
      * 单点单朝向的可通行性判定
      * @exmaple core.canMoveHero(); // 判断主角是否可以前进一步
@@ -1471,7 +1636,7 @@ declare class maps {
      * @returns true表示可移动，false表示不可移动
      */
     canMoveHero(x?: number, y?: number, direction?: direction, floorId?: string): boolean
-    
+
     /**
      * 能否瞬移到某点，并求出节约的步数。
      * @example core.canMoveDirectly(0, 0); // 能否瞬移到地图左上角
@@ -1480,7 +1645,7 @@ declare class maps {
      * @returns 正数表示节约的步数，-1表示不可瞬移
      */
     canMoveDirectly(destX: number, destY: number): number
-    
+
     /**
      * 自动寻路
      * @example core.automaticRoute(0, 0); // 自动寻路到地图左上角
@@ -1489,15 +1654,20 @@ declare class maps {
      * @returns 每步走完后主角的loc属性组成的一维数组
      */
     automaticRoute(destX: number, destY: number): Array<{ direction: direction, x: number, y: number }>
-    
+
     /**
-     * 地图重绘
-     * @example core.drawMap(); // 重绘当前地图，常用于更改贴图后或自动元件的刷新
+     * 地图绘制
+     * @example core.drawMap(); // 绘制当前地图
      * @param floorId 地图id，省略表示当前楼层
      * @param callback 重绘完毕后的回调函数，可选
      */
     drawMap(floorId?: string, callback?: () => void): void
-    
+
+    /**
+     * 重绘地图
+     */
+    redrawMap(): void
+
     /**
      * 绘制背景层（含贴图，其与背景层矩阵的绘制顺序可通过复写此函数来改变）
      * @example core.drawBg(); // 绘制当前地图的背景层
@@ -1505,7 +1675,7 @@ declare class maps {
      * @param ctx 某画布的ctx，用于绘制缩略图，一般不需要
      */
     drawBg(floorId?: string, ctx?: CanvasRenderingContext2D): void
-    
+
     /**
      * 绘制事件层
      * @example core.drawEvents(); // 绘制当前地图的事件层
@@ -1514,7 +1684,7 @@ declare class maps {
      * @param ctx 某画布的ctx，用于绘制缩略图，一般不需要
      */
     drawEvents(floorId?: string, blocks?: Block[], ctx?: CanvasRenderingContext2D): void
-    
+
     /**
      * 绘制前景层（含贴图，其与前景层矩阵的绘制顺序可通过复写此函数来改变）
      * @example core.drawFg(); // 绘制当前地图的前景层
@@ -1522,7 +1692,7 @@ declare class maps {
      * @param ctx 某画布的ctx，用于绘制缩略图，一般不需要
      */
     drawFg(floorId?: string, ctx?: CanvasRenderingContext2D): void
-    
+
     /**
      * 绘制缩略图
      * @example core.drawThumbnail(); // 绘制当前地图的缩略图
@@ -1530,8 +1700,28 @@ declare class maps {
      * @param blocks 一般不需要
      * @param options 额外的绘制项，可选。可以增绘主角位置和朝向、采用不同于游戏中的主角行走图、增绘显伤、提供flags用于存读档
      */
-    drawThumbnail(floorId?: string, blocks?: Block[], options?: object): void
-    
+    drawThumbnail(floorId?: string, blocks?: Block[], options?: {
+        heroLoc?: [number, number]
+        heroIcon?: string
+        /** 是否绘制显伤 */
+        damage?: boolean
+        /** 存读档时使用，可以无视 */
+        flags?: { [x: string]: any }
+        ctx?: CtxRefer
+        x?: number
+        y?: number
+        /** 绘制大小 */
+        size?: number
+        /** 绘制全图 */
+        all?: boolean
+        /** 绘制的视野中心 */
+        centerX?: number
+        /** 绘制的视野中心 */
+        centerY?: number
+        /** 存读档时使用，可以无视 */
+        noHD: boolean
+    }): void
+
     /**
      * 判定某个点是否不可被踏入（不基于主角生命值和图块cannotIn属性）
      * @example core.noPass(0, 0); // 判断地图左上角能否被踏入
@@ -1541,7 +1731,7 @@ declare class maps {
      * @returns true表示可踏入
      */
     noPass(x: number, y: number, floorId?: string): boolean
-    
+
     /**
      * 判定某个点的图块id
      * @example if(core.getBlockId(x1, y1) != 'greenSlime' && core.getBlockId(x2, y2) != 'redSlime') core.openDoor(x3, y3); // 一个简单的机关门事件，打败或炸掉这一对绿头怪和红头怪就开门
@@ -1552,7 +1742,7 @@ declare class maps {
      * @returns 图块id，该点无图块则返回null
      */
     getBlockId(x: number, y: number, floorId?: string, showDisable?: boolean): string | null
-    
+
     /** 判定某个点的图块数字；空图块为0 */
     getBlockNumber(x: number, y: number, floorId?: string, showDisable?: boolean): number
 
@@ -1566,7 +1756,7 @@ declare class maps {
      * @returns 图块类型，即“地形、四帧动画、矮敌人、高敌人、道具、矮npc、高npc、自动元件、额外地形”之一
      */
     getBlockCls(x: number, y: number, floorId?: string, showDisable?: boolean): 'terrains' | 'animates' | 'enemys' | 'enemy48' | 'items' | 'npcs' | 'npc48' | 'autotile' | 'tileset' | null
-    
+
     /**
      * 搜索图块, 支持通配符
      * @example core.searchBlock('*Door'); // 搜索当前地图的所有门
@@ -1575,8 +1765,18 @@ declare class maps {
      * @param showDisable 隐藏点是否计入，true表示计入
      * @returns 一个详尽的数组，一般只用到其长度
      */
-    searchBlock(id: string, floorId?: string, showDisable?: boolean): Array<{ floorId: string, index: number, x: number, y: number, block: Block }>
-    
+    searchBlock(id: string, floorId?: string | Array<string>, showDisable?: boolean): Array<{ floorId: string, index: number, x: number, y: number, block: Block }>
+
+    /**
+     * 根据给定的筛选函数搜索全部满足条件的图块
+     * @example core.searchBlockWithFilter(function (block) { return block.event.id.endsWith('Door'); }); // 搜索当前地图的所有门
+     * @param blockFilter 筛选函数，可接受block输入，应当返回一个boolean值
+     * @param floorId 地图id，不填视为当前地图
+     * @param showDisable 隐藏点是否计入，true表示计入
+     * @returns 一个详尽的数组
+     */
+    searchBlockWithFilter(blockFilter: (block: Block) => boolean, floorId?: string | Array<string>, showDisable?: boolean): Array<{ floorId: string, index: number, x: number, y: number, block: Block }>
+
     /**
      * 显示（隐藏或显示的）图块，此函数将被“显示事件”指令和勾选了“不消失”的“移动/跳跃事件”指令（如阻击怪）的终点调用
      * @example core.showBlock(0, 0); // 显示地图左上角的图块
@@ -1585,7 +1785,7 @@ declare class maps {
      * @param floorId 地图id，不填视为当前地图
      */
     showBlock(x: number, y: number, floorId?: string): void
-    
+
     /**
      * 隐藏一个图块，对应于「隐藏事件」且不删除
      * @example core.hideBlock(0, 0); // 隐藏地图左上角的图块
@@ -1594,7 +1794,7 @@ declare class maps {
      * @param floorId 地图id，不填视为当前地图
      */
     hideBlock(x: number, y: number, floorId?: string): void
-    
+
     /**
      * 删除一个图块，对应于「隐藏事件」并同时删除
      * @example core.removeBlock(0, 0); // 尝试删除地图左上角的图块
@@ -1603,28 +1803,7 @@ declare class maps {
      * @param floorId 地图id，不填视为当前地图
      */
     removeBlock(x: number, y: number, floorId?: string): void
-    
-    /**
-     * 显隐背景/前景层图块
-     * @example core.maps._triggerBgFgMap('show', 'fg', [0, 0]); // 显示地图左上角的前景层图块
-     * @param type 显示还是隐藏
-     * @param name 背景还是前景
-     * @param loc 两列的自然数数组，表示要显隐的点的坐标
-     * @param floorId 地图id，不填视为当前地图
-     * @param callback 显隐完毕后的回调函数，可选
-     */
-    //_triggerBgFgMap(type: 'show' | 'hide', name: 'bg' | 'fg', loc: [number, number] | Array<[number, number]>, floorId?: string, callback?: () => void): void
-    
-    /**
-     * 显隐楼层贴图
-     * @example core.maps._triggerFloorImage('show', [0, 0]); // 显示当前地图以左上角为左上角的贴图
-     * @param type 显示还是隐藏
-     * @param loc 两列的自然数数组，表示要显隐的点的坐标，坐标的单位为像素！！！
-     * @param floorId 地图id，不填视为当前地图
-     * @param callback 显隐完毕后的回调函数，可选
-     */
-    //_triggerFloorImage(type: 'show' | 'hide', loc: [number, number] | Array<[number, number]>, floorId?: string, callback?: () => void): void
-    
+
     /**
      * 转变图块
      * @example core.setBlock(1, 0, 0); // 把地图左上角变成黄墙
@@ -1634,7 +1813,7 @@ declare class maps {
      * @param floorId 地图id，不填视为当前地图
      */
     setBlock(number: number | string, x: number, y: number, floorId?: string): void
-    
+
     /**
      * 批量替换图块
      * @example core.replaceBlock(21, 22, core.floorIds); // 把游戏中地上当前所有的黄钥匙都变成蓝钥匙
@@ -1643,7 +1822,7 @@ declare class maps {
      * @param floorId 地图id或其数组，不填视为当前地图
      */
     replaceBlock(fromNumber: number, toNumber: number, floorId?: string | Array<string>): void
-    
+
     /**
      * 转变图层块
      * @example core.setBgFgBlock('bg', 167, 6, 6); // 把当前地图背景层的中心块改为滑冰
@@ -1654,7 +1833,7 @@ declare class maps {
      * @param floorId 地图id，不填视为当前地图
      */
     setBgFgBlock(name: 'bg' | 'fg', number: number | string, x: number, y: number, floorId?: string): void
-    
+
     /**
      * 移动图块
      * @example core.moveBlock(0, 0, ['down']); // 令地图左上角的图块下移一格，用时半秒，再花半秒淡出
@@ -1666,7 +1845,7 @@ declare class maps {
      * @param callback 移动或淡出后的回调函数，可选
      */
     moveBlock(x: number, y: number, steps: step[], time?: number, keep?: boolean, callback?: () => void): void
-    
+
     /**
      * 跳跃图块；从V2.7开始不再有音效
      * @example core.jumpBlock(0, 0, 0, 0); // 令地图左上角的图块原地跳跃半秒，再花半秒淡出
@@ -1679,7 +1858,7 @@ declare class maps {
      * @param callback 落地或淡出后的回调函数，可选
      */
     jumpBlock(sx: number, sy: number, ex: number, ey: number, time?: number, keep?: boolean, callback?: () => void): void
-    
+
     /**
      * 播放动画，注意即使指定了主角的坐标也不会跟随主角移动，如有需要请使用core.drawHeroAnimate(name, callback)函数
      * @example core.drawAnimate('attack', core.nextX(), core.nextY(), false, core.vibrate); // 在主角面前一格播放普攻动画，动画停止后视野左右抖动1秒
@@ -1705,10 +1884,13 @@ declare class maps {
      * @param id 播放动画的编号，即drawAnimate或drawHeroAnimate返回值
      * @param doCallback 是否执行该动画的回调函数
      */
-    stopAnimate(id: number, doCallback?: boolean): void 
+    stopAnimate(id?: number, doCallback?: boolean): void
+
+    /** 获得当前正在播放的所有（指定）动画的id列表 */
+    getPlayingAnimates(name?: string): Array<number>
 
     /** 加载某个楼层（从剧本或存档中） */
-    loadFloor(floorId?: string, map?: any): any
+    loadFloor(floorId: string, map?: any): ResolvedMap
 
     /** 根据需求解析出blocks */
     extractBlocks(map?: any): void
@@ -1717,37 +1899,37 @@ declare class maps {
     extractBlocks(map?: any, flags?: any): void
 
     /** 根据数字获得图块 */
-    getBlockByNumber(number: number): any
+    getBlockByNumber(number: number): Block
 
     /** 根据ID获得图块 */
-    getBlockById(id: string): any
+    getBlockById(id: string): Block
 
     /** 获得当前事件点的ID */
     getIdOfThis(id?: string): string
 
     /** 初始化一个图块 */
-    initBlock(x?: number, y?: number, id?: string | number, addInfo?: boolean, eventFloor?: any): any
+    initBlock(x?: number, y?: number, id?: string | number, addInfo?: boolean, eventFloor?: any): Block
 
     /** 压缩地图 */
-    compressMap(mapArr?: any, floorId?: string): any
+    compressMap(mapArr?: any, floorId?: string): object
 
     /** 解压缩地图 */
-    decompressMap(mapArr?: any, floorId?: string): any
+    decompressMap(mapArr?: any, floorId?: string): object
 
     /** 将当前地图重新变成数字，以便于存档 */
     saveMap(floorId?: string): any
 
     /** 将存档中的地图信息重新读取出来 */
-    loadMap(data?: any, floorId?: string): any
+    loadMap(data?: any, floorId?: string, flags?: any): object
 
     /** 更改地图画布的尺寸 */
     resizeMap(floorId?: string): void
 
     /** 以x,y的形式返回每个点的事件 */
-    getMapBlocksObj(floorId?: string, noCache?: boolean): any
+    getMapBlocksObj(floorId?: string, noCache?: boolean): object
 
     /** 获得某些点可否通行的信息 */
-    canMoveDirectlyArray(locs?: any): any
+    canMoveDirectlyArray(locs?: any): object
 
     /** 绘制一个图块 */
     drawBlock(block?: any, animate?: any): void
@@ -1775,6 +1957,9 @@ declare class maps {
 
     /** 获得某个图块或素材的信息，包括ID，cls，图片，坐标，faceIds等等 */
     getBlockInfo(block?: any): any
+
+    /** 获得某个图块对应行走图朝向向下的那一项的id；如果不存在行走图绑定则返回自身id */
+    getFaceDownId(block?: any): string
 
     /** 根据图块的索引来隐藏图块 */
     hideBlockByIndex(index?: any, floorId?: string): void
@@ -1828,7 +2013,7 @@ declare class maps {
 /** @file loader.js 主要负责资源的加载 */
 declare class loader {
     /** 加载一系列图片 */
-    loadImages(dir: any, names: any, toSave: any, callback?: () => any) : any
+    loadImages(dir: any, names: any, toSave: any, callback?: () => any): any
 
     /** 加载某一张图片 */
     loadImage(dir: any, imgName?: any, callback?: () => any): any
@@ -1939,7 +2124,7 @@ declare class items {
      * @param equipId 装备id
      * @returns 类型编号，自然数
      */
-    getEquipTypeById(equipId: string): number
+    getEquipTypeById(equipId: string): number | string
 
     /**
      * 检查能否穿上某件装备
@@ -1973,7 +2158,7 @@ declare class items {
      * @param beComparedEquipId 装备乙的id
      * @returns 两装备的各属性差，甲减乙，0省略
      */
-    compareEquipment(compareEquipId: string, beComparedEquipId: string): { [key: string]: number}
+    compareEquipment(compareEquipId: string, beComparedEquipId: string): { [key: string]: number }
 
     /**
      * 保存当前套装
@@ -1997,6 +2182,18 @@ declare class items {
 
     /** 根据类型获得一个可用的装备孔 */
     getEquipTypeByName(name?: string): void
+
+    /**
+     * 设置某个装备的属性并计入存档
+     * @example core.setEquip('sword1', 'value', 'atk', 300, '+='); // 设置铁剑的攻击力数值再加300
+     * @param equipId 装备id
+     * @param valueType 增幅类型，只能是value（数值）或percentage（百分比）
+     * @param name 要修改的属性名称，如atk
+     * @param value 要修改到的属性数值
+     * @param operator 操作符，可选，如+=表示在原始值上增加
+     * @param prefix 独立开关前缀，一般不需要
+     */
+    setEquip(equipId: string, valueType: string, name: string, value: any, operator?: string, prefix?: string): void
 }
 
 /** @file ui.js 主要用来进行UI窗口的绘制，如对话框、怪物手册、楼传器、存读档界面等等。*/
@@ -2013,7 +2210,7 @@ declare class ui {
      * name为画布名，可以是系统画布之一，也可以是任意自定义动态创建的画布名；还可以直接传画布的context本身。（下同）
      * 如果name也可以是'all'，若为all则为清空所有系统画布。
      */
-    clearMap(name: CtxRefer): void
+    clearMap(name: CtxRefer, x?: number, y?: number, w?: number, h?: number): void
 
     /**
      * 在某个画布上绘制一段文字
@@ -2021,7 +2218,7 @@ declare class ui {
      * @param style 绘制的样式
      * @param font 绘制的字体
      */
-    fillText(name: CtxRefer, text: string, x: number, y: number, style: string, font: string): void
+    fillText(name: CtxRefer, text: string, x: number, y: number, style?: string, font?: string, maxWidth?: number): void
 
     /**
      * 在某个画布上绘制一个描黑边的文字
@@ -2030,7 +2227,7 @@ declare class ui {
      * @param strokeStyle 绘制的描边颜色
      * @param font 绘制的字体
      */
-    fillBoldText(name: CtxRefer, text: string, x: number, y: number, style: string, strokeStyle: string, font: string): void
+    fillBoldText(name: CtxRefer, text: string, x: number, y: number, style?: string, strokeStyle?: string, font?: string, maxWidth?: number, lineWidth?: number): void
 
     /**
      * 绘制一个矩形。style可选为绘制样式
@@ -2043,7 +2240,7 @@ declare class ui {
      * 绘制一个矩形的边框
      * @param style 绘制的样式
      */
-    strokeRect(name: CtxRefer, x: number, y: number, width: number, height: number, style: string, angle?: number): void
+    strokeRect(name: CtxRefer, x: number, y: number, width: number, height: number, style: string, lineWidth?: number, angle?: number): void
 
     /**
      * 动态创建一个画布。name为要创建的画布名，如果已存在则会直接取用当前存在的。
@@ -2054,14 +2251,20 @@ declare class ui {
     createCanvas(name: string, x: number, y: number, width: number, height: number, zIndex: number): CanvasRenderingContext2D
 
     /** 重新定位一个自定义画布 */
-    relocateCanvas(name: string, x: number, y: number): void
+    relocateCanvas(name: string, x: number, y: number, useDelta: boolean): void
 
-    /** 重新设置一个自定义画布的大小 */
-    resizeCanvas(name: string, x: number, y: number): void
+    /** 
+     * 重新设置一个自定义画布的大小
+     * @param styleOnly 是否只修改style，而不修改元素上的长宽，如果是true，会出现模糊现象
+     * @param isTempCanvas 是否是临时画布，如果填true，会将临时画布修改为高清画布
+     */
+    resizeCanvas(name: string, x?: number, y?: number, styleOnly?: boolean, isTempCanvas?: boolean): void
+
+    /** 设置一个自定义画布的旋转角度 */
+    rotateCanvas(name: CtxRefer, angle: number, centerX?: number, centerY?: number): void
 
     /** 删除一个自定义画布 */
-    deleteCanvas(name: string): void
-
+    deleteCanvas(name: string | ((name: string) => boolean)): void
 
     /** 清空所有的自定义画布 */
     deleteAllCanvas(): void
@@ -2074,7 +2277,7 @@ declare class ui {
      * @param image 要绘制的图片，可以是一个全塔属性中定义的图片名（会从images中去获取），图片本身，或者一个画布。
      */
     drawImage(name: CtxRefer,
-        image: CanvasImageSource | string, dx: number): void
+        image: CanvasImageSource | string, dx: number, dy: number): void
     drawImage(name: CtxRefer,
         image: CanvasImageSource | string, dx: number, dy: number, dw: number, dh: number): void
     drawImage(name: CtxRefer,
@@ -2123,7 +2326,7 @@ declare class ui {
     /** 设置某个canvas的baseline */
     setTextBaseline(name: string | CanvasRenderingContext2D, baseline: any): void
 
-    /** 字符串自动换行的分割；具有标点禁则功能 */
+    /** 字符串自动换行的分割 */
     splitLines(name: string | CanvasRenderingContext2D, text: string, maxWidth?: number, font?: string): void
 
     /** 在某个canvas上绘制一个图标 */
@@ -2143,9 +2346,6 @@ declare class ui {
      */
     drawTip(text: string, id?: string, frame?: number): void
 
-    /** 清除提示内容 */
-    clearTip(): void
-
     /** 地图中间绘制一段文字 */
     drawText(contents: string, callback?: () => any): void
 
@@ -2153,7 +2353,7 @@ declare class ui {
     drawUIEventSelector(code: number, background: string, x: number, y: number, w: number, h: number, z?: number): void
 
     /** 清除一个或多个选择光标 */
-    clearUIEventSelector(code: number|number[]): void
+    clearUIEventSelector(code: number | number[]): void
 
     /** 绘制一个确认框 */
     drawConfirmBox(text: string, yesCallback?: () => void, noCallback?: () => void): void
@@ -2167,19 +2367,19 @@ declare class ui {
     /** 
      * 绘制一段文字到某个画布上面
      * @param ctx 要绘制到的画布
-     * @param content 要绘制的内容；转义字符不允许保留 \t, \b 和 \f
+     * @param content 要绘制的内容；转义字符只允许保留 \n, \r[...], \i[...], \c[...], \d, \e
      * @param config 绘制配置项，目前暂时包含如下内容（均为可选）
      *                left, top：起始点位置；maxWidth：单行最大宽度；color：默认颜色；align：左中右
      *                fontSize：字体大小；lineHeight：行高；time：打字机间隔；font：默认字体名
      * @returns 绘制信息 
-     */ 
-    drawTextContent(ctx: string | CanvasRenderingContext2D, content: string, config: any): any
+     */
+    drawTextContent(ctx: string | CanvasRenderingContext2D, content: string, config: TextContentConfig): any
 
     /** 获得某段文字的预计绘制高度；参见 drawTextContent */
     getTextContentHeight(content: string, config?: any): void
 
     /** 绘制一个对话框 */
-    drawTextBox(content: string, showAll?: boolean): void
+    drawTextBox(content: string, config?: any): void
 
     /** 绘制滚动字幕 */
     drawScrollText(content: string, time: number, lineHeight?: number, callback?: () => any): void
@@ -2223,8 +2423,11 @@ declare class ui {
     /** 设置某个canvas的线宽度 */
     setLineWidth(name: string | CanvasRenderingContext2D, lineWidth: number): void
 
-    /** 设置某个canvas的alpha值 */
-    setAlpha(name: string | CanvasRenderingContext2D, alpha: number): void
+    /** 设置某个canvas的alpha值；返回设置之前画布的不透明度。 */
+    setAlpha(name: string | CanvasRenderingContext2D, alpha: number): number
+
+    /** 设置某个canvas的filter属性 */
+    setFilter(name: string | CanvasRenderingContext2D, filter: any): void
 
     /** 设置某个canvas的透明度；尽量不要使用本函数，而是全部换成setAlpha实现 */
     setOpacity(name: string | CanvasRenderingContext2D, opacity: number): void
@@ -2316,7 +2519,7 @@ declare class utils {
     clone<T>(data?: T, filter?: (name: string, value: any) => boolean, recursion?: boolean): T
 
     /** 深拷贝一个1D或2D的数组 */
-    cloneArray(data?: Array<number>|Array<Array<number>>): Array<number>|Array<Array<number>>
+    cloneArray(data?: Array<number> | Array<Array<number>>): Array<number> | Array<Array<number>>
 
     /**
      * 等比例切分一张图片
@@ -2336,6 +2539,9 @@ declare class utils {
      * @returns 格式化结果
      */
     formatBigNumber(x: number, onMap?: boolean): string
+
+    /** 变速移动 */
+    applyEasing(mode?: string): (number) => number;
 
     /**
      * 颜色数组转十六进制
@@ -2458,7 +2664,7 @@ declare class utils {
      * @exmaple 1 + core.rand2(6); // 随机生成一个小于7的正整数，模拟骰子的效果
      * @param num 正整数，0或不填会被视为2147483648
      * @returns 属于 [0, num) 的随机数
-     */ 
+     */
     rand2(num?: number): number
 
     /**
@@ -2502,7 +2708,7 @@ declare class utils {
      * 尝试复制一段文本到剪切板。
      */
     copy(data: string): void
-    
+
     /**
      * 发送一个HTTP请求 [异步]
      * @param type 请求类型
@@ -2585,7 +2791,7 @@ declare class icons {
     getIcons(): void
 
     /** 根据ID获得其类型 */
-    getClsFromId(id?: string): void
+    getClsFromId(id?: string): string
 
     /** 获得所有图标的ID */
     getAllIconIds(): void
@@ -2594,39 +2800,55 @@ declare class icons {
     getTilesetOffset(id?: string): void
 }
 
+declare class plugin {
+
+}
+
 type core = {
     /** 地图可视部分大小 */
-    __SIZE__: number;
+    readonly __SIZE__: number;
     /** 地图像素 */
-    __PIXELS__: number;
+    readonly __PIXELS__: number;
     /** 地图像素的一半 */
-    __HALF_SIZE__: number;
+    readonly __HALF_SIZE__: number;
     /** 游戏素材 */
-    material: {
-        animates: { [key: string]: Animate },
-        images: {},
-        bgms: { [key: string]: HTMLAudioElement },
-        sounds: { [key: string]: HTMLAudioElement },
-        ground: CanvasRenderingContext2D
+    readonly material: {
+        readonly animates: { [key: string]: Animate },
+        readonly images: {
+            airwall: HTMLImageElement
+            animates: HTMLImageElement
+            enemys: HTMLImageElement
+            enemy48: HTMLImageElement
+            items: HTMLImageElement
+            npcs: HTMLImageElement
+            npc48: HTMLImageElement
+            terrains: HTMLImageElement
+            autotile: { [x: string]: HTMLImageElement }
+            images: { [x: string]: HTMLImageElement }
+            tilesets: { [x: string]: HTMLImageElement }
+        },
+        readonly bgms: { [key: string]: HTMLAudioElement },
+        readonly sounds: { [key: string]: HTMLAudioElement },
+        readonly ground: CanvasRenderingContext2D
         /**
          * 怪物信息
          * @example core.material.enemys.greenSlime // 获得绿色史莱姆的属性数据
          */
-        enemys: { [key: string]: Enemy },
+        readonly enemys: { [key: string]: Enemy },
         /** 道具信息 */
-        items: { [key: string]: Item }
-        icons: {},
+        readonly items: { [key: string]: Item }
+        readonly icons: { [key: string]: { [key: string]: number } },
     }
-    timeout: {
+    readonly timeout: {
         turnHeroTimeout: any,
         onDownTimeout: any,
         sleepTimeout: any,
     }
-    interval: {
+    readonly interval: {
         heroMoveInterval: any,
         onDownInterval: any,
     }
-    animateFrame: {
+    readonly animateFrame: {
         totalTime: number
         totalTimeStart: number
         globalAnimate: boolean,
@@ -2637,7 +2859,7 @@ type core = {
         moveTime: number
         lastLegTime: number
         leftLeg: boolean,
-        weather: {
+        readonly weather: {
             time: number
             type: any
             nodes: [],
@@ -2645,15 +2867,15 @@ type core = {
             fog: any,
             cloud: any,
         },
-        tips: {
+        readonly tips: {
             time: number
             offset: number
             list: [],
             lastSize: number
         },
-        asyncId: {}
+        readonly asyncId: {}
     }
-    musicStatus: {
+    readonly musicStatus: {
         audioContext: AudioContext,
         /** 是否播放BGM */bgmStatus: boolean
         /** 是否播放SE */soundStatus: boolean
@@ -2665,7 +2887,7 @@ type core = {
         /** 缓存BGM内容 */cachedBgms: string[]
         /** 缓存的bgm数量 */cachedBgmCount: number
     }
-    platform: {
+    readonly platform: {
         /** 是否http */isOnline: boolean
         /** 是否是PC */isPC: boolean
         /** 是否是Android */isAndroid: boolean
@@ -2675,22 +2897,21 @@ type core = {
         /** 是否是QQ */isQQ: boolean
         /** 是否是Chrome */isChrome: boolean
         /** 是否支持复制到剪切板 */supportCopy: boolean
-        useLocalForage: boolean,
 
         fileInput: null
         /** 是否支持FileReader */fileReader: null
         /** 读取成功 */successCallback: null
         /** 读取失败 */errorCallback: null
     }
-    dom: { [key: string]: HTMLElement }
+    readonly dom: { [key: string]: HTMLElement }
     /** dom样式 */
-    domStyle: {
+    readonly domStyle: {
         scale: number,
         isVertical: boolean,
         showStatusBar: boolean,
         toolbarBtn: boolean,
     }
-    bigmap: {
+    readonly bigmap: {
         canvas: string[],
         offsetX: number // in pixel
         offsetY: number
@@ -2705,9 +2926,9 @@ type core = {
         tempCanvas: CanvasRenderingContext2D // A temp canvas for drawing
         cacheCanvas: CanvasRenderingContext2D
     }
-    saves: {
+    readonly saves: {
         saveIndex: number
-        ids: { [key: number]: boolean }
+        readonly ids: { [key: number]: boolean }
         autosave: {
             data: Save[]
             max: number
@@ -2716,30 +2937,116 @@ type core = {
             updated: boolean
         }
         favorite: []
-        favoriteName: {}
+        readonly favoriteName: {}
     }
-    initStatus: gameStatus;
-    dymCanvas: { [key: string]: CanvasRenderingContext2D }
+    readonly initStatus: gameStatus;
+    readonly dymCanvas: { [key: string]: CanvasRenderingContext2D }
     /** 游戏状态 */
-    status: gameStatus
+    readonly status: gameStatus
 
     /** 
      * 获得所有楼层的信息
      * @example core.floors[core.status.floorId].events // 获得本楼层的所有自定义事件
      */
-    floors: { [key: string]: Floor }
+    readonly floors: { [key: string]: ResolvedMap }
+    readonly floorIds: string[]
 
-    control: control
-    loader: loader
-    events: events
-    enemys: enemys
-    items: items
-    maps: maps
-    ui: ui
-    utils: utils
-    icons: icons
-    actions: actions
+    readonly statusBar: {
+        readonly icons: { [x: string]: HTMLImageElement }
+    }
 
-} & control & events & loader & enemys & items & maps & ui & utils & icons & actions
+    readonly materials: string[]
 
-declare var core: core
+    readonly control: control
+    readonly loader: loader
+    readonly events: events
+    readonly enemys: enemys
+    readonly items: items
+    readonly maps: maps
+    readonly ui: ui
+    readonly utils: utils
+    readonly icons: icons
+    readonly actions: actions
+    readonly plugin: plugin
+
+} & control & events & loader & enemys & items & maps & ui & utils & icons & actions & plugin
+
+type main = {
+    editorOpened: boolean
+    readonly core: core
+    readonly dom: { [key: string]: HTMLElement }
+    /** 游戏版本，发布后会被随机，请勿使用该属性 */
+    readonly version: string
+    readonly useCompress: boolean
+    readonly savePages: number
+    readonly mode: 'play' | 'editor'
+    readonly statusBar: {
+        images: { [x: string]: HTMLElement }
+        icons: { [x: string]: number | null | undefined }
+        [x: string]: HTMLElement | object
+    }
+    readonly __VERSION__: string
+    readonly __VERSION_CODE__: number
+    readonly images: string[]
+
+    /** 输出内容（极不好用，建议换成console，我甚至不知道样板为什么会有这个东西）*/
+    log(e: string | Error, error: boolean): void
+}
+
+declare class Sprite {
+
+    x: number
+    y: number
+    width: number
+    height: number
+    zIndex: number
+    reference: 'game' | 'window'
+    canvas: HTMLCanvasElement
+    context: CanvasRenderingContext2D
+    name: string
+    readonly count: number
+
+    /** 创建一个sprite画布
+     * @param reference 参考系，游戏画面或者窗口
+     * @param name 可选，sprite的名称，方便通过core.dymCanvas获取
+     */
+    constructor(x: number, y: number, w: number, h: number, z: number, reference?: 'game' | 'window', name?: string)
+
+    /** 初始化 */
+    init(): void
+
+    /** 设置css特效 */
+    setCss(css: string): Sprite
+
+    /** 
+     * 移动sprite
+     * @param isDelta 是否是相对位置，如果是，那么sprite会相对于原先的位置进行移动
+     */
+    move(x: number, y: number, isDelta?: boolean): Sprite
+
+    /**
+     * 重新设置sprite的大小
+     * @param {boolean} styleOnly 是否只修改css效果，如果是，那么将会不高清，如果不是，那么会清空画布
+     */
+    resize(w: number, h: number, styleOnly?: boolean): Sprite
+
+    /** 旋转画布 */
+    rotate(angle: number, cx?: number, cy?: number): Sprite
+
+    /** 擦除画布 */
+    clear(x: number, y: number, w?: number, h?: number): Sprite
+
+    /** 删除 */
+    destroy(): void
+
+    /** 添加事件监听器 */
+    addEventListener: HTMLCanvasElement['addEventListener']
+
+    /** 删除事件监听器 */
+    removeEventListenr: HTMLCanvasElement['addEventListener']
+}
+
+declare let main: main
+declare let core: core
+declare let flags: { [x: string]: any }
+declare let hero: HeroStatus

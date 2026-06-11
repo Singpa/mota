@@ -28,24 +28,50 @@ grammar MotaAction;
 //===============parser===============
 //===blockly语句===
 
+common_m
+    :   '编辑事件' BGNL? Newline action+ BEND
+    
+
+/* common_m
+tooltip : 编辑事件
+helpUrl : /_docs/#/instruction
+var code = '[\n'+action_0+']\n';
+return code;
+*/;
+
+
 //事件 事件编辑器入口之一
 event_m
-    :   '事件' BGNL? Newline '覆盖触发器' Bool '启用' Bool '通行状态' B_0_List '显伤' Bool BGNL? Newline action+ BEND
+    :   '事件' BGNL? Newline '覆盖触发器' Bool '启用' Bool '通行状态' B_0_List '显伤' Bool '不透明度' Number BGNL? Newline '该点特效' '虚化' Number '色相' Int '灰度' Number '反色' Bool '阴影' Number BGNL? Newline action+ BEND
     
 
 /* event_m
 tooltip : 编辑魔塔的事件
 helpUrl : /_docs/#/instruction
-default : [false,null,null,null,null]
+default : [false,true,null,true,1,0,0,0,false,0,null]
 B_0_List_0=eval(B_0_List_0);
+if (Number_0 < 0 || Number_0 > 1) throw '不透明度需要在0~1之间';
+if (Number_1 < 0) throw '虚化不得小于0；0为完全没有虚化';
+if (Int_0 < 0 || Int_0 >= 360) throw '色相需要在0~359之间';
+if (Number_2 < 0 || Number_2 > 1) throw '灰度需要在0~1之间';
+if (Number_3 < 0) throw '阴影不得小于0；0为完全没有阴影';
 var code = {
     'trigger': Bool_0?'action':null,
     'enable': Bool_1,
     'noPass': B_0_List_0,
     'displayDamage': Bool_2,
+    'opacity': Number_0,
+    'filter': {
+        'blur': Number_1,
+        'hue': Int_0,
+        'grayscale': Number_2,
+        'invert': Bool_3,
+        'shadow': Number_3
+    },
     'data': 'data_asdfefw'
 }
-if (!Bool_0 && Bool_1 && (B_0_List_0===null) && Bool_2) code = 'data_asdfefw';
+if (!Bool_0 && Bool_1 && B_0_List_0===null && Bool_2 && Number_0==1.0 && Number_1==0 && Int_0==0 && Number_2==0 && !Bool_3 && Number_3==0) 
+    code = 'data_asdfefw';
 code=JSON.stringify(code,null,2).split('"data_asdfefw"').join('[\n'+action_0+']\n');
 return code;
 */;
@@ -53,7 +79,7 @@ return code;
 
 //自动事件 事件编辑器入口之一
 autoEvent_m
-    :   '自动事件：' '触发条件' EvalString '优先级' Int BGNL? Newline '仅在本层检测' Bool '事件流中延迟执行' Bool '允许多次执行' Bool BGNL? Newline action+ BEND
+    :   '自动事件：' '触发条件' EvalString_Multi '优先级' Int BGNL? Newline '仅在本层检测' Bool '事件流中延迟执行' Bool '允许多次执行' Bool BGNL? Newline action+ BEND
     
 
 /* autoEvent_m
@@ -61,14 +87,14 @@ tooltip : 自动事件
 helpUrl : /_docs/#/instruction
 default : ["flag:__door__===2",0,true,false,false,null]
 var code = {
-    "condition": EvalString_0, // 条件不可为null
+    "condition": 'autoEvent_condition', // 条件不可为null
     "currentFloor": Bool_0, // 是否仅在本层检测
     "priority": Int_0, // 优先级
     "delayExecute": Bool_1, // 延迟执行
     "multiExecute": Bool_2, // 是否允许多次执行
     "data": 'autoEvent_asdfefw', // 事件列表
 };
-code=JSON.stringify(code,null,2).split('"autoEvent_asdfefw"').join('[\n'+action_0+']\n');
+code=JSON.stringify(code,null,2).replace('autoEvent_condition', EvalString_Multi_0).split('"autoEvent_asdfefw"').join('[\n'+action_0+']\n');
 return code;
 */;
 
@@ -223,6 +249,18 @@ var code = {
 }
 if (JsonEvalString_0) code.args = JSON.parse(JsonEvalString_0);
 code=JSON.stringify(code,null,2)+',\n';
+return code;
+*/;
+
+//beforeBattle 事件编辑器入口之一
+beforeBattle_m
+    :   '战斗开始前' BGNL? Newline action+ BEND
+    
+
+/* beforeBattle_m
+tooltip : 战斗开始前
+helpUrl : /_docs/#/instruction
+var code = '[\n'+action_0+']\n';
 return code;
 */;
 
@@ -418,7 +456,7 @@ return code;
 
 // equip 事件编辑器入口之一
 equip_m 
-    :   '装备' '类型' EvalString '装备动画（第一个装备格有效）' IdString? BGNL? '数值提升项' equipList+ '百分比提升项' equipList+ BEND
+    :   '装备' '类型' EvalString '装备动画（第一个装备格有效）' IdString? BGNL? '数值提升项' equipList+ '百分比提升项' equipList+ '穿上时事件' action+ '脱下时事件' action+ '此道具cls须为equips并设置canUseItemEffect' BEND
 
 
 /* equip_m
@@ -430,7 +468,9 @@ if (!/^\d+$/.test(EvalString_0)) {
     EvalString_0 = '"' + EvalString_0 + '"';
 }
 IdString_0 = IdString_0 && (', "animate": "'+IdString_0+'"');
-var code = '{"type": '+EvalString_0+IdString_0+', "value": {\n'+equipList_0+'\n}, "percentage": {\n'+equipList_1+'\n}}';
+if (action_0.trim()) action_0 = ', "equipEvent": [\n' + action_0 + ']';
+if (action_1.trim()) action_1 = ', "unequipEvent": [\n' + action_1 + ']';
+var code = '{"type": '+EvalString_0+IdString_0+', "value": {\n'+equipList_0+'\n}, "percentage": {\n'+equipList_1+'\n}'+action_0+action_1+'}';
 return code;
 */;
 
@@ -441,25 +481,27 @@ equipList
 
 
 equipKnown
-    : Equip_List ':' Number BEND
+    : Equip_List ':' EvalString BEND
 
 
 /* equipKnown
 tooltip : 装备项
 default : ['atk', 10]
 helpUrl : /_docs/#/instruction
-return '"'+Equip_List_0+'": '+Number_0+', ';
+if (!/^[+-]?\d+(\.\d+)?$/.test(EvalString_0)) EvalString_0 = '"' + EvalString_0 + '"';
+return '"'+Equip_List_0+'": '+EvalString_0+', ';
 */;
 
 equipUnknown
-    : EvalString ':' Number BEND
+    : EvalString ':' EvalString BEND
 
 
 /* equipUnknown
 tooltip : 装备项
 default : ['speed', 10]
 helpUrl : /_docs/#/instruction
-return '"'+EvalString_0+'": '+Number_0+', ';
+if (!/^[+-]?\d+(\.\d+)?$/.test(EvalString_1)) EvalString_1 = '"' + EvalString_1 + '"';
+return '"'+EvalString_0+'": '+EvalString_1+', ';
 */;
 
 
@@ -520,7 +562,7 @@ return code;
 
 // doorInfo 事件编辑器入口之一
 doorInfo_m 
-    :   '门信息' '开关门时间' Int '开门音效' EvalString? '关门音效' EvalString? BGNL? Newline '需要钥匙' doorKeyList+ '如需撞到开门还需要把图块触发器改成 openDoor' BEND
+    :   '门信息' '开关门时间' Int '开门音效' EvalString? '关门音效' EvalString? BGNL? Newline '需要钥匙' doorKeyList+ '如需撞到开门还需要把图块触发器改成 openDoor' BGNL? Newline '开门后事件' action+ BEND
 
 
 /* doorInfo_m
@@ -529,7 +571,8 @@ default : [160, 'door.mp3', 'door.mp3']
 helpUrl : /_docs/#/instruction
 EvalString_0 = EvalString_0 && (', "openSound": "' + EvalString_0 + '"');
 EvalString_1 = EvalString_1 && (', "closeSound": "' + EvalString_1 + '"');
-var code = '{"time": '+Int_0+EvalString_0+EvalString_1+', "keys": {\n'+doorKeyList_0+'\n}}';
+if (action_0.trim()) action_0 = ', "afterOpenDoor": [\n' + action_0 + ']';
+var code = '{"time": '+Int_0+EvalString_0+EvalString_1+', "keys": {\n'+doorKeyList_0+'\n}'+action_0.trim()+'}';
 return code;
 */;
 
@@ -575,7 +618,7 @@ return code;
 
 
 faceIds_m
-    : '行走图朝向:' BGNL? Newline '向上ID' IdString? '向下ID' IdString? '向左ID' IdString? '向右ID' IdString? BEND
+    : '行走图朝向:' BGNL? Newline '向下ID' IdString? '向左ID' IdString? '向右ID' IdString? '向上ID' IdString?  BEND
 
 
 /* faceIds_m
@@ -584,17 +627,17 @@ default : ["","","",""]
 allIds : ['IdString_0','IdString_1','IdString_2','IdString_3']
 helpUrl : /_docs/#/instruction
 return '{' + [
-    IdString_0 && ('"up": "' + IdString_0 +'"'),
-    IdString_1 && ('"down": "' + IdString_1 +'"'),
-    IdString_2 && ('"left": "' + IdString_2 +'"'),
-    IdString_3 && ('"right": "' + IdString_3 +'"'),
+    IdString_0 && ('"down": "' + IdString_0 +'"'),
+    IdString_1 && ('"left": "' + IdString_1 +'"'),
+    IdString_2 && ('"right": "' + IdString_2 +'"'),
+    IdString_3 && ('"up": "' + IdString_3 +'"'),
 ].filter(function (x) { return x; }).join(', ') + '}\n';
 */;
 
 
 mainStyle_m
-    : '主要样式设置：' '标题界面背景图（544x422）：' EvalString BGNL? Newline 
-      '竖屏标题界面背景图（422x580）' EvalString BGNL? Newline 
+    : '主要样式设置：' '标题界面背景图：' EvalString BGNL? Newline 
+      '竖屏标题界面背景图：' EvalString BGNL? Newline 
       '标题样式；可写 display: none 隐藏标题' EvalString BGNL? Newline 
       '标题按钮样式：' EvalString BGNL? Newline 
       '横屏状态栏背景；url(...) 0 0/100% 100% no-repeat 可将图片拉伸自适配' BGNL? Newline EvalString BGNL? Newline  
@@ -625,12 +668,149 @@ var code = {
 return JSON.stringify(code);
 */;
 
+nameMap_m
+    : '文件别名设置' '（可以游戏中使用此别名代替原始文件名）' BGNL? Newline nameMapList+ BEND
+
+/* nameMap_m
+tooltip : 文件别名设置
+helpUrl : /_docs/#/instruction
+var value = nameMapList_0.trim();
+if (value.startsWith(',')) value = value.substring(1);
+return '{'+value+'}';
+*/;
+
+nameMapList
+    :   nameMapBgm
+    |   nameMapSoundKnown
+    |   nameMapSoundUnknown
+    |   nameMapImage
+    |   nameMapAnimate
+    |   nameMapUnknown
+    |   nameMapEmpty;
+
+nameMapBgm
+    : '映射背景音乐' '名称' EvalString '映射到文件' EvalString BEND
+
+/* nameMapBgm
+tooltip : 映射背景音乐
+default : ['背景音乐', 'bgm.mp3']
+allBgms : ['EvalString_1']
+material : ["./project/bgms/", "EvalString_1"]
+helpUrl : /_docs/#/instruction
+return ',"'+EvalString_0+'":"'+EvalString_1+'"';
+*/;
+
+nameMapSoundKnown
+    : '映射系统音效' '名称' NameMap_List '映射到文件' EvalString BEND
+
+/* nameMapSoundKnown
+tooltip : 映射系统音效
+default : ['确定', 'confirm.mp3']
+allSounds : ['EvalString_0']
+material : ["./project/sounds/", "EvalString_0"]
+helpUrl : /_docs/#/instruction
+return ',"'+NameMap_List_0+'":"'+EvalString_0+'"';
+*/;
+
+nameMapSoundUnknown
+    : '映射音效' '名称' EvalString '映射到文件' EvalString BEND
+
+/* nameMapSoundUnknown
+tooltip : 映射音效
+default : ['攻击', 'attack.mp3']
+allSounds : ['EvalString_1']
+material : ["./project/sounds/", "EvalString_1"]
+helpUrl : /_docs/#/instruction
+return ',"'+EvalString_0+'":"'+EvalString_1+'"';
+*/;
+
+nameMapImage
+    : '映射图片' '名称' EvalString '映射到文件' EvalString BEND
+
+/* nameMapImage
+tooltip : 映射图片
+default : ['背景图', 'bg.jpg']
+allImages : ['EvalString_1']
+material : ["./project/images/:images", "EvalString_1"]
+helpUrl : /_docs/#/instruction
+return ',"'+EvalString_0+'":"'+EvalString_1+'"';
+*/;
+
+nameMapAnimate
+    : '映射动画' '名称' EvalString '映射到文件' IdString BEND
+
+/* nameMapAnimate
+tooltip : 映射图片
+default : ['领域', 'zone']
+allAnimates : ['IdString_0']
+material : ["./project/animates/", "IdString_0"]
+helpUrl : /_docs/#/instruction
+return ',"'+EvalString_0+'":"'+IdString_0+'"';
+*/;
+
+nameMapUnknown
+    : '未知映射' '名称' EvalString '映射到文件' EvalString BEND
+
+/* nameMapUnknown
+tooltip : 未知映射
+default : ['文件名', 'file.jpg']
+helpUrl : /_docs/#/instruction
+return ',"'+EvalString_0+'":"'+EvalString_1+'"';
+*/;
+
+nameMapEmpty
+    :   Newline
+    
+/* nameMapEmpty
+return ' \n';
+*/;
+
+
+splitImages_m
+    :   '图片切分（你可以将一张png格式的大图切分为若干小图）' BGNL? splitImagesList+ BEND
+
+
+/* splitImages_m
+tooltip: 图片裁剪
+helpUrl : /_docs/#/instruction
+var code = '[\n'+splitImagesList_0+']\n';
+return code;
+*/;
+
+splitImagesList
+    : splitImagesOne
+    | splitImagesEmpty;
+
+
+splitImagesOne
+    :   '图片切分项' '图片名' EvalString '每个小图宽度' Int '高度' Int '生成小图的前缀' EvalString BEND
+
+/* splitImagesOne
+tooltip : 图片裁剪项
+helpUrl : /_docs/#/instruction
+default : ['hero.png', 32, 32, 'hero_']
+material : ["./project/images/:images", "EvalString_0"]
+allImages : ['EvalString_0']
+var code = '{"name": "'+EvalString_0+'", "width": '+Int_0+', "height": '+Int_1+', "prefix": "'+EvalString_1+'"},\n';
+return code;
+*/;
+
+splitImagesEmpty
+    :   Newline
+    
+/* splitImagesEmpty
+var code = ' \n';
+return code;
+*/;
+
 //为了避免关键字冲突,全部加了_s
 //动作
 action
     :   text_0_s
     |   text_1_s
     |   text_2_s
+    |   moveTextBox_s
+    |   clearTextBox_s
     |   comment_s
     |   autoText_s
     |   scrollText_s
@@ -638,12 +818,20 @@ action
     |   tip_s
     |   setValue_s
     |   setEnemy_s
+    |   setEnemyOnPoint_s
+    |   resetEnemyOnPoint_s
+    |   moveEnemyOnPoint_s
+    |   moveEnemyOnPoint_1_s
+    |   setEquip_s
     |   setFloor_s
     |   setGlobalAttribute_s
     |   setGlobalValue_s
     |   setGlobalFlag_s
+    |   setNameMap_s
     |   show_s
     |   hide_s
+    |   setBlockOpacity_s
+    |   setBlockFilter_s
     |   trigger_s
     |   insert_1_s
     |   insert_2_s
@@ -659,11 +847,11 @@ action
     |   update_s
     |   showStatusBar_s
     |   hideStatusBar_s
-    |   showHero_s
-    |   hideHero_s
+    |   setHeroOpacity_s
     |   sleep_s
     |   wait_s
     |   waitAsync_s
+    |   stopAsync_s
     |   battle_s
     |   battle_1_s
     |   openDoor_s
@@ -671,7 +859,8 @@ action
     |   changeFloor_s
     |   changePos_s
     |   setViewport_s
-    |   moveViewport_s
+    |   setViewport_1_s
+    |   lockViewport_s
     |   useItem_s
     |   loadEquip_s
     |   unloadEquip_s
@@ -680,12 +869,16 @@ action
     |   follow_s
     |   unfollow_s
     |   animate_s
+    |   animate_1_s
+    |   stopAnimate_s
     |   vibrate_s
     |   showImage_s
     |   showImage_1_s
     |   hideImage_s
     |   showTextImage_s
     |   moveImage_s
+    |   rotateImage_s
+    |   scaleImage_s
     |   showGif_s
     |   setCurtain_0_s
     |   setCurtain_1_s
@@ -704,8 +897,10 @@ action
     |   loadBgm_s
     |   freeBgm_s
     |   playSound_s
+    |   playSound_1_s
     |   stopSound_s
     |   setVolume_s
+    |   setBgmSpeed_s
     |   win_s
     |   lose_s
     |   restart_s
@@ -725,10 +920,12 @@ action
     |   callBook_s
     |   callSave_s
     |   autoSave_s
+    |   forbidSave_s
     |   callLoad_s
     |   previewUI_s
     |   clearMap_s
     |   setAttribute_s
+    |   setFilter_s
     |   fillText_s
     |   fillBoldText_s
     |   drawTextContent_s
@@ -760,23 +957,28 @@ text_0_s
 /* text_0_s
 tooltip : text：显示一段文字（剧情）
 helpUrl : /_docs/#/instruction
-doubleclicktext : EvalString_Multi_0
-default : ["欢迎使用事件编辑器(回车直接多行编辑)"]
+previewBlock : true
+default : ["欢迎使用事件编辑器(双击方块可直接预览)"]
 var code = '"'+EvalString_Multi_0+'"';
-if (block.isCollapsed()) code = '{"type": "text", "text": '+code+', "_collapsed": true}';
+if (block.isCollapsed() || !block.isEnabled()) {
+    code = '{"type": "text", "text": '+code;
+    if (block.isCollapsed()) code += ', "_collapsed": true';
+    if (!block.isEnabled()) code += ', "_disabled": true';
+    code += '}';
+}
 return code+',\n';
 */;
 
 text_1_s
-    :   '标题' EvalString? '图像' EvalString? '对话框效果' EvalString? BGNL? Newline EvalString_Multi Newline
+    :   '标题' EvalString? '图像' EvalString? '对话框效果' EvalString? '起点 px' PosString? 'py' PosString? '宽' PosString? '编号' Int '不等待操作' Bool BGNL? Newline EvalString_Multi Newline
     
 
 /* text_1_s
 tooltip : text：显示一段文字（剧情）,选项较多请右键点击帮助
 helpUrl : /_docs/#/instruction
-doubleclicktext : EvalString_Multi_0
+previewBlock : true
 allIds : ['EvalString_1']
-default : ["小妖精","fairy","","欢迎使用事件编辑器(回车直接多行编辑)"]
+default : ["小妖精","fairy","","","","",0,false,"欢迎使用事件编辑器(双击方块可直接预览)"]
 var title='';
 if (EvalString_0==''){
     if (EvalString_1=='' )title='';
@@ -784,26 +986,41 @@ if (EvalString_0==''){
 } else {
     if (EvalString_1=='')title='\\t['+EvalString_0+']';
     else title='\\t['+EvalString_0+','+EvalString_1+']';
+}
+var pos = '';
+if (PosString_0 || PosString_1) {
+    if (EvalString_2) throw new Error('对话框效果和起点像素位置只能设置一项！');
+    pos = '[' + (PosString_0||0) + ',' + (PosString_1||0);
+    if (PosString_2) pos += ',' + PosString_2;
+    pos += ']';
 }
 if(EvalString_2 && !(/^(up|center|down|hero|this)(,(hero|null|\d+,\d+|\d+))?$/.test(EvalString_2))) {
   throw new Error('对话框效果的用法请右键点击帮助');
 }
 EvalString_2 = EvalString_2 && ('\\b['+EvalString_2+']');
 var code =  '"'+title+EvalString_2+EvalString_Multi_0+'"';
-if (block.isCollapsed()) code = '{"type": "text", "text": '+code+', "_collapsed": true}';
+if (block.isCollapsed() || !block.isEnabled() || pos || Int_0 || Bool_0) {
+    code = '{"type": "text", "text": '+code;
+    if (pos) code += ', "pos": ' + pos;
+    if (Int_0) code += ', "code": ' + Int_0;
+    if (Bool_0) code += ', "async": true';
+    if (block.isCollapsed()) code += ', "_collapsed": true';
+    if (!block.isEnabled()) code += ', "_disabled": true';
+    code += '}';
+}
 return code+',\n';
 */;
 
 text_2_s
-    :   '标题' EvalString? '图像' EvalString? '对话框效果' EvalString? BGNL? Newline EvalString_Multi BGNL? Newline textDrawingList* Newline
+    :   '标题' EvalString? '图像' EvalString? '对话框效果' EvalString? '起点 px' PosString? 'py' PosString? '宽' PosString? '编号' Int '不等待操作' Bool BGNL? Newline EvalString_Multi BGNL? Newline textDrawingList* Newline
     
 
 /* text_2_s
 tooltip : text：显示一段文字（剧情）,选项较多请右键点击帮助
 helpUrl : /_docs/#/instruction
-doubleclicktext : EvalString_Multi_0
+previewBlock : true
 allIds : ['EvalString_1']
-default : ["小妖精","fairy","","欢迎使用事件编辑器(回车直接多行编辑)",null]
+default : ["小妖精","fairy","","","","",0,"欢迎使用事件编辑器(双击方块可直接预览)",null]
 var title='';
 if (EvalString_0==''){
     if (EvalString_1=='' )title='';
@@ -812,12 +1029,27 @@ if (EvalString_0==''){
     if (EvalString_1=='')title='\\t['+EvalString_0+']';
     else title='\\t['+EvalString_0+','+EvalString_1+']';
 }
+var pos = '';
+if (PosString_0 || PosString_1) {
+    if (EvalString_2) throw new Error('对话框效果和起点像素位置只能设置一项！');
+    pos = '[' + (PosString_0||0) + ',' + (PosString_1||0);
+    if (PosString_2) pos += ',' + PosString_2;
+    pos += ']';
+}
 if(EvalString_2 && !(/^(up|center|down|hero|this)(,(hero|null|\d+,\d+|\d+))?$/.test(EvalString_2))) {
   throw new Error('对话框效果的用法请右键点击帮助');
 }
 EvalString_2 = EvalString_2 && ('\\b['+EvalString_2+']');
 var code =  '"'+title+EvalString_2+textDrawingList_0.replace(/\s/g, '')+EvalString_Multi_0+'"';
-if (block.isCollapsed()) code = '{"type": "text", "text": '+code+', "_collapsed": true}';
+if (block.isCollapsed() || !block.isEnabled() || pos || Int_0 || Bool_0) {
+    code = '{"type": "text", "text": '+code;
+    if (pos) code += ', "pos": ' + pos;
+    if (Int_0) code += ', "code": ' + Int_0;
+    if (Bool_0) code += ', "async": true';
+    if (block.isCollapsed()) code += ', "_collapsed": true';
+    if (!block.isEnabled()) code += ', "_disabled": true';
+    code += '}';
+}
 return code+',\n';
 */;
 
@@ -874,6 +1106,34 @@ var code = '';
 return code;
 */;
 
+moveTextBox_s
+    :   '移动对话框' ':' Int 'px' PosString 'py' PosString '使用增量' Bool '移动方式' MoveMode_List '动画时间' Int '不等待执行完毕' Bool Newline
+
+/* moveTextBox_s
+tooltip : 移动对话框
+helpUrl : /_docs/#/instruction
+default : [1,"0","0",false,'',500,false]
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
+Bool_0 = Bool_0 ?', "relative": true':'';
+Bool_1 = Bool_1 ?', "async": true':'';
+var code = '{"type": "moveTextBox", "code": '+Int_0+', "loc": ['+PosString_0+','+PosString_1+']'+Bool_0+MoveMode_List_0+', "time": '+Int_1+Bool_1+'},\n';
+return code;
+*/;
+
+clearTextBox_s
+    :   '清除对话框' ':' EvalString? Newline
+
+/* clearTextBox_s
+tooltip : 清除对话框
+helpUrl : /_docs/#/instruction
+default : ["1"]
+if (EvalString_0 && !/^\d+(,\d+)*$/.test(EvalString_0)) throw new Error('对话框编号需要以逗号分隔');
+EvalString_0 = EvalString_0 ? (', "code": ['+EvalString_0+']') : '';
+var code = '{"type": "clearTextBox"'+EvalString_0+'},\n';
+return code;
+*/;
+
+
 comment_s
     :   '添加注释' ':' EvalString_Multi Newline
 
@@ -929,13 +1189,14 @@ return code;
 */;
 
 setText_s
-    :   '设置剧情文本的属性' '位置' SetTextPosition_List '偏移像素' IntString? '对齐' TextAlign_List? BGNL? '标题颜色' ColorString? Colour '正文颜色' ColorString? Colour '背景色' EvalString? Colour BGNL? '粗体' B_1_List '标题字体大小' IntString? '正文字体大小' IntString? '行距' IntString? '打字间隔' IntString? '字符间距' IntString? Newline
+    :   '设置剧情文本的属性' '位置' SetTextPosition_List '偏移像素' IntString? '对齐' TextAlign_List? '粗体' B_1_List? BGNL? '标题颜色' ColorString? Colour '正文颜色' ColorString? Colour '背景色' EvalString? Colour BGNL? '标题大小' IntString? '正文大小' IntString? '行距' IntString? '打字间隔' IntString? '字符间距' IntString? '淡入淡出时间' IntString? Newline
     
 
 /* setText_s
 tooltip : setText：设置剧情文本的属性,颜色为RGB三元组或RGBA四元组,打字间隔为剧情文字添加的时间间隔,为整数或不填，字符间距为字符之间的距离，为整数或不填。
 helpUrl : /_docs/#/instruction
-default : [null,"",null,"",'rgba(255,255,255,1)',"",'rgba(255,255,255,1)',"",'rgba(255,255,255,1)',null,"","","","",""]
+previewBlock : true
+default : [null,"",null,null,"",'rgba(255,255,255,1)',"",'rgba(255,255,255,1)',"",'rgba(255,255,255,1)',"","","","","",""]
 SetTextPosition_List_0 =SetTextPosition_List_0==='null'?'': ', "position": "'+SetTextPosition_List_0+'"';
 TextAlign_List_0 = TextAlign_List_0==='null'?'': ', "align": "'+TextAlign_List_0+'"';
 var colorRe = MotaActionFunctions.pattern.colorRe;
@@ -957,9 +1218,10 @@ IntString_1 = IntString_1 ? (', "titlefont": '+IntString_1) : '';
 IntString_2 = IntString_2 ? (', "textfont": '+IntString_2) : '';
 IntString_3 = IntString_3 ? (', "lineHeight": '+IntString_3) : '';
 IntString_4 = IntString_4 ? (', "time": '+IntString_4) : '';
-IntString_5 = IntString_5 ? (', "interval": '+IntString_5) : '';
+IntString_5 = IntString_5 ? (', "letterSpacing": '+IntString_5) : '';
+IntString_6 = IntString_6 ? (', "animateTime": ' + IntString_6) : '';
 B_1_List_0 = B_1_List_0==='null'?'':', "bold": '+B_1_List_0;
-var code = '{"type": "setText"'+SetTextPosition_List_0+IntString_0+TextAlign_List_0+ColorString_0+ColorString_1+B_1_List_0+EvalString_0+IntString_1+IntString_2+IntString_3+IntString_4+IntString_5+'},\n';
+var code = '{"type": "setText"'+SetTextPosition_List_0+IntString_0+TextAlign_List_0+B_1_List_0+ColorString_0+ColorString_1+EvalString_0+IntString_1+IntString_2+IntString_3+IntString_4+IntString_5+IntString_6+'},\n';
 return code;
 */;
 
@@ -996,19 +1258,120 @@ return code;
 
 
 setEnemy_s
-    :   '设置怪物属性' ':' '怪物ID' IdString '的' EnemyId_List '为' expression Newline
+    :   '设置怪物属性' ':' '怪物ID' IdString '的' EnemyId_List AssignOperator_List expression '不刷新显伤' Bool Newline
 
 
 /* setEnemy_s
 tooltip : setEnemy：设置某个怪物的属性
 helpUrl : /_docs/#/instruction
-default : ["greenSlime", "atk", "0"]
+default : ["greenSlime", "atk", "=", "", false]
 allEnemys : ['IdString_0']
 colour : this.dataColor
-var code = '{"type": "setEnemy", "id": "'+IdString_0+'", "name": "'+EnemyId_List_0+'", "value": "'+expression_0+'"},\n';
+if (AssignOperator_List_0 && AssignOperator_List_0 != '=') {
+  AssignOperator_List_0 = ', "operator": "' + AssignOperator_List_0 + '"';
+} else AssignOperator_List_0 = '';
+Bool_0 = Bool_0 ? ', "norefresh": true' : '';
+var code = '{"type": "setEnemy", "id": "'+IdString_0+'", "name": "'+EnemyId_List_0+'"'+AssignOperator_List_0+', "value": "'+expression_0+'"'+Bool_0+'},\n';
 return code;
 */;
 
+
+setEquip_s
+    :   '设置装备属性' ':' '装备ID' IdString EquipValueType_List '的' EvalString AssignOperator_List expression Newline
+
+
+/* setEquip_s
+tooltip : setEquip：设置某个怪物的属性
+helpUrl : /_docs/#/instruction
+default : ["sword1", "value", "atk", "="]
+allEquips : ['IdString_0']
+colour : this.dataColor
+EquipValueType_List_0 = EquipValueType_List_0 == 'percentage' ? ', "valueType": "percentage"' : ', "valueType": "value"';
+if (AssignOperator_List_0 && AssignOperator_List_0 != '=') {
+  AssignOperator_List_0 = ', "operator": "' + AssignOperator_List_0 + '"';
+} else AssignOperator_List_0 = '';
+var code = '{"type": "setEquip", "id": "'+IdString_0+'"'+EquipValueType_List_0+', "name": "'+EvalString_0+'"'+AssignOperator_List_0+', "value": "'+expression_0+'"},\n';
+return code;
+*/;
+
+
+setEnemyOnPoint_s
+    :   '设置某点怪物属性' ':' 'x' EvalString? ',' 'y' EvalString? '楼层' IdString? '的' EnemyPoint_List AssignOperator_List expression '不刷新显伤' Bool Newline
+
+
+/* setEnemyOnPoint_s
+tooltip : setEnemyOnPoint：设置某个点上怪物的属性
+helpUrl : /_docs/#/instruction
+default : ["", "", "", "atk", "=", "", false]
+selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
+allFloorIds : ['IdString_0']
+colour : this.dataColor
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
+if (AssignOperator_List_0 && AssignOperator_List_0 != '=') {
+  AssignOperator_List_0 = ', "operator": "' + AssignOperator_List_0 + '"';
+} else AssignOperator_List_0 = '';
+IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
+Bool_0 = Bool_0 ? ', "norefresh": true' : '';
+var code = '{"type": "setEnemyOnPoint"'+floorstr+IdString_0+', "name": "'+EnemyPoint_List_0+'"'+AssignOperator_List_0+', "value": "'+expression_0+'"'+Bool_0+'},\n';
+return code;
+*/;
+
+resetEnemyOnPoint_s
+    :   '重置某点怪物属性' ':' 'x' EvalString? ',' 'y' EvalString? '楼层' IdString? '不刷新显伤' Bool Newline
+
+
+/* resetEnemyOnPoint_s
+tooltip : resetEnemyOnPoint：重置某个点上怪物的属性
+helpUrl : /_docs/#/instruction
+default : ["", "", "", false]
+selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
+allFloorIds : ['IdString_0']
+colour : this.dataColor
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
+IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
+Bool_0 = Bool_0 ? ', "norefresh": true' : '';
+var code = '{"type": "resetEnemyOnPoint"'+floorstr+IdString_0+Bool_0+'},\n';
+return code;
+*/;
+
+moveEnemyOnPoint_s
+    :   '移动某点怪物属性' ':' '起点' 'x' PosString? ',' 'y' PosString? '终点' 'x' PosString? 'y' PosString? '楼层' IdString? '不刷新显伤' Bool Newline
+
+
+/* moveEnemyOnPoint_s
+tooltip : moveEnemyOnPoint：移动某个点上怪物的属性到其他点
+helpUrl : /_docs/#/instruction
+default : ["", "", "", "", "", false]
+allFloorIds : ['IdString_0']
+selectPoint : ["PosString_2", "PosString_3"]
+menu : [['选择起点位置','editor_blockly.selectPoint(block,["PosString_0", "PosString_1"])']]
+colour : this.dataColor
+IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
+var floorstr = PosString_0 && PosString_1 ? ', "from": ['+PosString_0+','+PosString_1+']' : '';
+if (PosString_2 && PosString_3) floorstr += ', "to": ['+PosString_2+','+PosString_3+']'
+Bool_0 = Bool_0 ? ', "norefresh": true' : '';
+var code = '{"type": "moveEnemyOnPoint"'+floorstr+IdString_0+Bool_0+'},\n';
+return code;
+*/;
+
+moveEnemyOnPoint_1_s
+    :   '移动某点怪物属性' ':' '起点' 'x' PosString? ',' 'y' PosString? '增量' 'dx' PosString? 'dy' PosString? '楼层' IdString? '不刷新显伤' Bool Newline
+
+
+/* moveEnemyOnPoint_1_s
+tooltip : moveEnemyOnPoint：移动某个点上怪物的属性到其他点
+helpUrl : /_docs/#/instruction
+default : ["", "", "", "", "", false]
+allFloorIds : ['IdString_0']
+selectPoint : ["PosString_0", "PosString_1"]
+colour : this.dataColor
+IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
+var floorstr = PosString_0 && PosString_1 ? ', "from": ['+PosString_0+','+PosString_1+']' : '';
+if (PosString_2 && PosString_3) floorstr += ', "dxy": ['+PosString_2+','+PosString_3+']'
+Bool_0 = Bool_0 ? ', "norefresh": true' : '';
+var code = '{"type": "moveEnemyOnPoint"'+floorstr+IdString_0+Bool_0+'},\n';
+return code;
+*/;
 
 setFloor_s
     :   '设置楼层属性' ':' Floor_Meta_List '楼层名' IdString? '为' JsonEvalString Newline
@@ -1068,6 +1431,20 @@ return code;
 */;
 
 
+setNameMap_s
+    :   '设置文件别名' ':' EvalString '为' EvalString? Newline
+
+
+/* setNameMap_s
+tooltip : setNameMap：设置文件别名
+helpUrl : /_docs/#/instruction
+default : ["背景音乐",""]
+colour : this.dataColor
+EvalString_1 = EvalString_1 ? (', "value": "' + EvalString_1 + '"') : '';
+var code = '{"type": "setNameMap", "name": "'+EvalString_0+'"'+EvalString_1+'},\n';
+return code;
+*/;
+
 show_s
     :   '显示事件' 'x' EvalString? ',' 'y' EvalString? '楼层' IdString? '动画时间' IntString? '不等待执行完毕' Bool? Newline
     
@@ -1079,23 +1456,7 @@ default : ["","","","",false]
 selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
 Bool_0 = Bool_0 ?', "async": true':'';
@@ -1114,23 +1475,7 @@ default : ["","","",true,"",false]
 selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
 Bool_0 = Bool_0 ?', "remove": true':'';
@@ -1138,6 +1483,48 @@ Bool_1 = Bool_1 ?', "async": true':'';
 var code = '{"type": "hide"'+floorstr+IdString_0+Bool_0+IntString_0+Bool_1+'},\n';
 return code;
 */;
+
+setBlockOpacity_s
+    :   '设置图块不透明度' 'x' EvalString? ',' 'y' EvalString? '楼层' IdString? '不透明度' Number '动画时间' IntString? '不等待执行完毕' Bool? Newline
+    
+
+/* setBlockOpacity_s
+tooltip : setBlockOpacity: 设置图块不透明度
+helpUrl : /_docs/#/instruction
+default : ["","","",1.0,"",false]
+selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
+allFloorIds : ['IdString_0']
+colour : this.mapColor
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
+if (Number_0 < 0 || Number_0 > 1) throw new Error('不透明度需要在0~1之间');
+IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
+IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
+Bool_0 = Bool_0 ?', "async": true':'';
+var code = '{"type": "setBlockOpacity"'+floorstr+IdString_0+', "opacity": '+Number_0+IntString_0+Bool_0+'},\n';
+return code;
+*/;
+
+setBlockFilter_s
+    :   '设置图块特效' 'x' EvalString? ',' 'y' EvalString? '楼层' IdString? '虚化' Number '色相' Int '灰度' Number '反色' Bool '阴影' Number Newline
+    
+
+/* setBlockFilter_s
+tooltip : setBlockFilter: 设置图块特效
+helpUrl : /_docs/#/instruction
+default : ["","","",0,0,0,false,0]
+selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
+allFloorIds : ['IdString_0']
+colour : this.mapColor
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
+if (Number_0 < 0) throw '虚化不得小于0；0为完全没有虚化';
+if (Int_0 < 0 || Int_0 >= 360) throw '色相需要在0~359之间';
+if (Number_1 < 0 || Number_1 > 1) throw '灰度需要在0~1之间';
+if (Number_2 < 0) throw '阴影不得小于0；0为完全没有阴影';
+
+var code = '{"type": "setBlockFilter"'+floorstr+IdString_0+', "blur": '+Number_0+', "hue": '+Int_0+', "grayscale": '+Number_1+', "invert": '+Bool_0+', "shadow": '+Number_2+'},\n';
+return code;
+*/;
+
 
 trigger_s
     :   '触发系统事件' 'x' PosString? ',' 'y' PosString? Newline
@@ -1164,6 +1551,7 @@ insert_1_s
 /* insert_1_s
 tooltip : insert: 插入公共事件并执行
 helpUrl : /_docs/#/instruction
+allEvents : ['EvalString_0']
 default : ["加点事件", ""]
 colour : this.eventColor
 if (JsonEvalString_0) {
@@ -1227,23 +1615,7 @@ allFloorIds : ['IdString_0']
 allIds : ['EvalString_0']
 default : ["yellowDoor","","","","",false]
 selectPoint : ["EvalString_1", "EvalString_2", "IdString_0"]
-var floorstr = '';
-if (EvalString_1 && EvalString_2) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_1) || pattern1.test(EvalString_2)){
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_2=MotaActionFunctions.PosString_pre(EvalString_2);
-    EvalString_1=[EvalString_1,EvalString_2]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_1) || !pattern2.test(EvalString_2))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_1=EvalString_1.split(',');
-    EvalString_2=EvalString_2.split(',');
-    if(EvalString_1.length!==EvalString_2.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_1.length;ii++)EvalString_1[ii]='['+EvalString_1[ii]+','+EvalString_2[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_1.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_1, EvalString_2);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 IntString_0 = IntString_0 && (', "time": ' + IntString_0);
 Bool_0 = Bool_0 ? (', "async": true') : '';
@@ -1262,23 +1634,7 @@ colour : this.mapColor
 allFloorIds : ['IdString_0']
 default : [null,"","",""]
 selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 if (DirectionEx_List_0 == 'null') DirectionEx_List_0 = '';
 DirectionEx_List_0 = DirectionEx_List_0 && (', "direction": "'+DirectionEx_List_0+'"');
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
@@ -1296,23 +1652,7 @@ helpUrl : /_docs/#/instruction
 default : ["","",""]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 var code = '{"type": "showFloorImg"'+floorstr+IdString_0+'},\n';
 return code;
@@ -1328,23 +1668,7 @@ helpUrl : /_docs/#/instruction
 default : ["","",""]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 var code = '{"type": "hideFloorImg"'+floorstr+IdString_0+'},\n';
 return code;
@@ -1361,23 +1685,7 @@ default : ["bg","","",""]
 selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 var code = '{"type": "showBgFgMap", "name": "' + Bg_Fg_List_0 + '"' +floorstr+IdString_0+'},\n';
 return code;
@@ -1394,23 +1702,7 @@ default : ["bg","","",""]
 allFloorIds : ['IdString_0']
 colour : this.mapColor
 selectPoint : ["EvalString_0", "EvalString_1", "IdString_0"]
-var floorstr = '';
-if (EvalString_0 && EvalString_1) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_0) || pattern1.test(EvalString_1)){
-    EvalString_0=MotaActionFunctions.PosString_pre(EvalString_0);
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_0=[EvalString_0,EvalString_1]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_0) || !pattern2.test(EvalString_1))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_0=EvalString_0.split(',');
-    EvalString_1=EvalString_1.split(',');
-    if(EvalString_0.length!==EvalString_1.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_0.length;ii++)EvalString_0[ii]='['+EvalString_0[ii]+','+EvalString_1[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_0.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_0, EvalString_1);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 var code = '{"type": "hideBgFgMap", "name": "' + Bg_Fg_List_0 + '"' +floorstr+IdString_0+'},\n';
 return code;
@@ -1428,23 +1720,7 @@ selectPoint : ["EvalString_1", "EvalString_2", "IdString_0"]
 allIds : ['EvalString_0']
 allFloorIds : ['IdString_0']
 default : ["bg","yellowDoor","","",""]
-var floorstr = '';
-if (EvalString_1 && EvalString_2) {
-  var pattern1 = MotaActionFunctions.pattern.id;
-  if(pattern1.test(EvalString_1) || pattern1.test(EvalString_2)){
-    EvalString_1=MotaActionFunctions.PosString_pre(EvalString_1);
-    EvalString_2=MotaActionFunctions.PosString_pre(EvalString_2);
-    EvalString_1=[EvalString_1,EvalString_2]
-  } else {
-    var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
-    if(!pattern2.test(EvalString_1) || !pattern2.test(EvalString_2))throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    EvalString_1=EvalString_1.split(',');
-    EvalString_2=EvalString_2.split(',');
-    if(EvalString_1.length!==EvalString_2.length)throw new Error('坐标格式错误,请右键点击帮助查看格式');
-    for(var ii=0;ii<EvalString_1.length;ii++)EvalString_1[ii]='['+EvalString_1[ii]+','+EvalString_2[ii]+']';
-  }
-  floorstr = ', "loc": ['+EvalString_1.join(',')+']';
-}
+var floorstr = MotaActionFunctions.processMultiLoc(EvalString_1, EvalString_2);
 IdString_0 = IdString_0 && (', "floorId": "'+IdString_0+'"');
 var code = '{"type": "setBgFgBlock", "name": "' + Bg_Fg_List_0 + '", "number": "'+EvalString_0+'"'+floorstr+IdString_0+'},\n';
 return code;
@@ -1460,7 +1736,7 @@ helpUrl : /_docs/#/instruction
 colour : this.dataColor
 default : ["hero.png", false]
 allImages : ['EvalString_0']
-material : ["./project/images/", "EvalString_0"]
+material : ["./project/images/:images", "EvalString_0"]
 EvalString_0 = EvalString_0 && (', "name": "'+EvalString_0+'"');
 Bool_0 = Bool_0 ? (', "noDraw": true') : '';
 var code = '{"type": "setHeroIcon"'+EvalString_0+Bool_0+'},\n';
@@ -1507,33 +1783,19 @@ var code = '{"type": "hideStatusBar"'+Bool_0+'},\n';
 return code;
 */;
 
-showHero_s
-    :   '显示勇士' '动画时间' IntString? '不等待执行完毕' Bool Newline
+setHeroOpacity_s
+    :   '设置勇士不透明度' Number '渐变方式' MoveMode_List '动画时间' IntString? '不等待执行完毕' Bool Newline
 
-
-/* showHero_s
-tooltip : showHero: 显示勇士
+/* setHeroOpacity_s
+tooltip : setHeroOpacity: 设置勇士不透明度
 helpUrl : /_docs/#/instruction
-default : ['',false]
+default : [1,'','',false]
 colour : this.soundColor
+if (Number_0 < 0 || Number_0 > 1) throw new Error('不透明度需要在0~1之间');
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
 IntString_0 = IntString_0 && (', "time": ' + IntString_0);
 Bool_0 = Bool_0 ? (', "async": true') : '';
-var code = '{"type": "showHero"'+IntString_0+Bool_0+'},\n';
-return code;
-*/;
-
-hideHero_s
-    :   '隐藏勇士' '动画时间' IntString? '不等待执行完毕' Bool Newline
-
-
-/* hideHero_s
-tooltip : hideHero: 隐藏勇士
-helpUrl : /_docs/#/instruction
-default : ['',false]
-colour : this.soundColor
-IntString_0 = IntString_0 && (', "time": ' + IntString_0);
-Bool_0 = Bool_0 ? (', "async": true') : '';
-var code = '{"type": "hideHero"'+IntString_0+Bool_0+'},\n';
+var code = '{"type": "setHeroOpacity", "opacity": '+Number_0+MoveMode_List_0+IntString_0+Bool_0+'},\n';
 return code;
 */;
 
@@ -1694,13 +1956,13 @@ tooltip : loadEquip: 装上装备
 helpUrl : /_docs/#/instruction
 colour : this.dataColor
 default : ["sword1"]
-allItems : ['IdString_0']
+allEquips : ['IdString_0']
 var code = '{"type": "loadEquip", "id": "'+IdString_0+'"},\n';
 return code;
 */;
 
 unloadEquip_s
-    :   '卸下装备孔' Int '的装备' Newline
+    :   '卸下第' Int '格装备孔的装备' Newline
 
 
 /* unloadEquip_s
@@ -1750,7 +2012,7 @@ tooltip : follow: 跟随勇士
 helpUrl : /_docs/#/instruction
 default : ["npc.png"]
 allImages : ['EvalString_0']
-material : ["./project/images/", "EvalString_0"]
+material : ["./project/images/:images", "EvalString_0"]
 colour : this.dataColor
 var code = '{"type": "follow", "name": "'+EvalString_0+'"},\n';
 return code;
@@ -1765,7 +2027,7 @@ tooltip : unfollow: 取消跟随
 helpUrl : /_docs/#/instruction
 default : [""]
 allImages : ['EvalString_0']
-material : ["./project/images/", "EvalString_0"]
+material : ["./project/images/:images", "EvalString_0"]
 colour : this.dataColor
 EvalString_0 = EvalString_0 ? (', "name": "' + EvalString_0 + '"') : "";
 var code = '{"type": "unfollow"' + EvalString_0 + '},\n';
@@ -1773,79 +2035,118 @@ return code;
 */;
 
 vibrate_s
-    :   '画面震动' '时间' Int '不等待执行完毕' Bool Newline
+    :   '画面震动' '方向' Vibrate_List '时间' Int '速度' Int '振幅' Int '不等待执行完毕' Bool Newline
 
 
 /* vibrate_s
 tooltip : vibrate: 画面震动
 helpUrl : /_docs/#/instruction
-default : [2000,false]
+default : ["horizontal",2000,10,10,false]
 colour : this.soundColor
-Int_0 = Int_0 ?(', "time": '+Int_0):'';
 var async = Bool_0?', "async": true':''
-var code = '{"type": "vibrate"' + Int_0 + async + '},\n';
+var code = '{"type": "vibrate", "direction": "'+Vibrate_List_0+'", "time": '+Int_0+', "speed": '+Int_1+', "power": '+Int_2+async+'},\n';
 return code;
 */;
 
 animate_s
-    :   '显示动画' IdString '位置' EvalString? '相对窗口坐标' Bool '不等待执行完毕' Bool Newline
+    :   '显示动画' EvalString '位置' 'x' PosString? 'y' PosString? '相对窗口坐标' Bool '不等待执行完毕' Bool Newline
     
 
 /* animate_s
 tooltip : animate：显示动画,位置填hero或者1,2形式的位置,或者不填代表当前事件点
 helpUrl : /_docs/#/instruction
-default : ["zone","hero",false,false]
-allAnimates : ['IdString_0']
-material : ["./project/animates/", "IdString_0"]
-menu : [['选择位置','editor_blockly.selectPoint(block,["EvalString_0","EvalString_0"])']]
+default : ["zone","","",false,false]
+allAnimates : ['EvalString_0']
+material : ["./project/animates/", "EvalString_0"]
+menu : [['选择位置', 'editor_blockly.selectPoint(block, ["PosString_0", "PosString_1"])']]
 colour : this.soundColor
-if (EvalString_0) {
-  if(MotaActionFunctions.pattern.id2.test(EvalString_0)) {
-    EvalString_0=', "loc": ["'+EvalString_0.split(',').join('","')+'"]';
-  } else if (/hero|([+-]?\d+),([+-]?\d+)/.test(EvalString_0)) {
-    if(EvalString_0.indexOf(',')!==-1)EvalString_0='['+EvalString_0+']';
-    else EvalString_0='"'+EvalString_0+'"';
-    EvalString_0 = ', "loc": '+EvalString_0;
-  } else {
-    throw new Error('此处只能填hero或者1,2形式的位置,或者不填代表当前事件点');
-  }
-}
+var loc = PosString_0&&PosString_1?(', "loc": ['+PosString_0+','+PosString_1+']'):'';
 Bool_0 = Bool_0?', "alignWindow": true':'';
-var async = Bool_1?', "async": true':'';
-var code = '{"type": "animate", "name": "'+IdString_0+'"'+EvalString_0+Bool_0+async+'},\n';
+Bool_1 = Bool_1?', "async": true':'';
+var code = '{"type": "animate", "name": "'+EvalString_0+'"'+loc+Bool_0+Bool_1+'},\n';
+return code;
+*/;
+
+animate_1_s
+    :   '显示动画并跟随角色' EvalString '不等待执行完毕' Bool Newline
+    
+
+/* animate_1_s
+tooltip : animate：显示动画并跟随角色
+helpUrl : /_docs/#/instruction
+default : ["zone",false]
+allAnimates : ['EvalString_0']
+material : ["./project/animates/", "EvalString_0"]
+colour : this.soundColor
+Bool_0 = Bool_0?', "async": true':'';
+var code = '{"type": "animate", "name": "'+EvalString_0+'", "loc": "hero"'+Bool_0+'},\n';
+return code;
+*/;
+
+stopAnimate_s
+    :   '停止所有动画' '执行动画回调' Bool Newline
+
+/* stopAnimate_s
+tooltip : stopAnimate：停止所有动画
+helpUrl : /_docs/#/instruction
+default : [false]
+colour : this.soundColor
+Bool_0 = Bool_0?', "doCallback": true':'';
+var code = '{"type": "stopAnimate"'+Bool_0+'},\n';
 return code;
 */;
 
 setViewport_s
-    :   '设置视角' '左上角坐标' 'x' PosString? ',' 'y' PosString? Newline
+    :   '设置视角' '左上角坐标' 'x' PosString? ',' 'y' PosString? '移动方式' MoveMode_List '动画时间' Int '不等待执行完毕' Bool Newline
 
 
 /* setViewport_s
 tooltip : setViewport: 设置视角
 helpUrl : /_docs/#/instruction
-default : ["",""]
+default : ["","","",0,false]
 selectPoint : ["PosString_0", "PosString_1"]
 colour : this.soundColor
 var loc = '';
 if (PosString_0 && PosString_1) {
     loc = ', "loc": ['+PosString_0+','+PosString_1+']';
 }
-var code = '{"type": "setViewport"'+loc+'},\n';
+Int_0 = Int_0 ?(', "time": '+Int_0):'';
+Bool_0 = Bool_0?', "async": true':'';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
+var code = '{"type": "setViewport"'+loc+MoveMode_List_0+Int_0+Bool_0+'},\n';
 return code;
 */;
 
-moveViewport_s
-    :   '移动视角' '动画时间' IntString '不等待执行完毕' Bool BGNL? StepString Newline
+setViewport_1_s
+    :   '设置视角' '增量坐标' 'dx' PosString? ',' 'dy' PosString? '移动方式' MoveMode_List '动画时间' Int '不等待执行完毕' Bool Newline
 
 
-/* moveViewport_s
-tooltip : moveViewport：移动视角
+/* setViewport_1_s
+tooltip : setViewport: 设置视角
 helpUrl : /_docs/#/instruction
-default : [300,false,"上右3下2左"]
+default : ["0","0","",0,false]
 colour : this.soundColor
-IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
+var loc = '';
+if (PosString_0 && PosString_1) {
+    loc = ', "dxy": ['+PosString_0+','+PosString_1+']';
+}
+Int_0 = Int_0 ?(', "time": '+Int_0):'';
 Bool_0 = Bool_0?', "async": true':'';
-var code = '{"type": "moveViewport"'+IntString_0+Bool_0+', "steps": '+JSON.stringify(StepString_0)+'},\n';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
+var code = '{"type": "setViewport"'+loc+MoveMode_List_0+Int_0+Bool_0+'},\n';
+return code;
+*/;
+
+lockViewport_s
+    :   '是否锁定视角' Bool Newline
+
+/* lockViewport_s
+tooltip : lockViewport: 是否锁定视角
+helpUrl : /_docs/#/instruction
+default : [false]
+colour : this.soundColor
+Bool_0 = Bool_0 ? (', "lock": true') : '';
+var code = '{"type": "lockViewport"'+Bool_0+'},\n';
 return code;
 */;
 
@@ -1859,8 +2160,9 @@ tooltip : showImage：显示图片
 helpUrl : /_docs/#/instruction
 default : [1,"bg.jpg","null","0","0",1,0,false]
 allImages : ['EvalString_0']
-colour : this.printColor
+menu : [['选择图片','editor_blockly.selectMaterial(block, ["./project/images/:images", "EvalString_0"])']]
 previewBlock : true
+colour : this.imageColor
 if (Reverse_List_0 && Reverse_List_0 != 'null') {
     Reverse_List_0 = ', "reverse": "' + Reverse_List_0 + '"';
 } else Reverse_List_0 = '';
@@ -1880,8 +2182,9 @@ tooltip : showImage_1：显示图片
 helpUrl : /_docs/#/instruction
 default : [1,"bg.jpg","null","0","0","","",1,"0","0","","",0,false]
 allImages : ['EvalString_0']
-colour : this.printColor
+menu : [['选择图片','editor_blockly.selectMaterial(block, ["./project/images/:images", "EvalString_0"])']]
 previewBlock : true
+colour : this.imageColor
 if (Reverse_List_0 && Reverse_List_0 != 'null') {
     Reverse_List_0 = ', "reverse": "' + Reverse_List_0 + '"';
 } else Reverse_List_0 = '';
@@ -1901,8 +2204,8 @@ showTextImage_s
 /* showTextImage_s
 tooltip : showTextImage：显示图片化文本
 helpUrl : /_docs/#/instruction
+colour : this.imageColor
 doubleclicktext : EvalString_Multi_0
-colour : this.printColor
 default : ["可以使用setText事件来控制字体、颜色、大小、偏移量等",1,"0","0",1.4,"null",1,0,false]
 if (Reverse_List_0 && Reverse_List_0 != 'null') {
     Reverse_List_0 = ', "reverse": "' + Reverse_List_0 + '"';
@@ -1919,8 +2222,8 @@ hideImage_s
 /* hideImage_s
 tooltip : hideImage：清除图片
 helpUrl : /_docs/#/instruction
-colour : this.printColor
 default : [1,0,false]
+colour : this.imageColor
 var async = Bool_0?', "async": true':'';
 var code = '{"type": "hideImage", "code": '+NInt_0+', "time": '+Int_0+async+'},\n';
 return code;
@@ -1935,8 +2238,8 @@ tooltip : showGif：显示动图
 helpUrl : /_docs/#/instruction
 default : ["","",""]
 allImages : ['EvalString_0']
-colour : this.printColor
 previewBlock : true
+colour : this.imageColor
 EvalString_0 = EvalString_0 ? (', "name": "'+EvalString_0+'"') : '';
 var loc = (PosString_0 && PosString_1) ? (', "loc": ['+PosString_0+','+PosString_1+']') : '';
 var code = '{"type": "showGif"'+EvalString_0+loc+'},\n';
@@ -1945,67 +2248,108 @@ return code;
 
 moveImage_s
     :   '图片移动' '图片编号' NInt '终点像素位置' 'x' PosString? 'y' PosString? BGNL?
-        '不透明度' EvalString? '移动时间' Int '不等待执行完毕' Bool Newline
+        '不透明度' EvalString? '移动方式' MoveMode_List '移动时间' Int '不等待执行完毕' Bool Newline
     
 
 /* moveImage_s
 tooltip : moveImage：图片移动
 helpUrl : /_docs/#/instruction
-default : [1,'','','',500,false]
-colour : this.printColor
+default : [1,'','','','',500,false]
+colour : this.imageColor
 var toloc = '';
 if (PosString_0 && PosString_1)
   toloc = ', "to": ['+PosString_0+','+PosString_1+']';
 EvalString_0 = (EvalString_0!=='') ? (', "opacity": '+EvalString_0):'';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
 var async = Bool_0?', "async": true':'';
-var code = '{"type": "moveImage", "code": '+NInt_0+toloc+EvalString_0+',"time": '+Int_0+async+'},\n';
+var code = '{"type": "moveImage", "code": '+NInt_0+toloc+MoveMode_List_0+EvalString_0+', "time": '+Int_0+async+'},\n';
+return code;
+*/;
+
+rotateImage_s
+    :   '图片旋转' '图片编号' NInt '中心点像素' 'x' PosString? 'y' PosString? '移动方式' MoveMode_List BGNL? '旋转度数（正数顺时针，负数逆时针）' NInt '旋转时间' Int '不等待执行完毕' Bool Newline
+    
+
+/* rotateImage_s
+tooltip : rotateImage：图片旋转
+helpUrl : /_docs/#/instruction
+default : [1,'','','',90,500,false]
+colour : this.imageColor
+var loc = '';
+if (PosString_0 && PosString_1)
+  loc = ', "center": ['+PosString_0+','+PosString_1+']';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
+var async = Bool_0?', "async": true':'';
+var code = '{"type": "rotateImage", "code": '+NInt_0+loc+', "angle": '+NInt_1+MoveMode_List_0+', "time": '+Int_0+async+'},\n';
+return code;
+*/;
+
+scaleImage_s
+    :   '图片放缩' '图片编号' NInt '中心点像素' 'x' PosString? 'y' PosString? '移动方式' MoveMode_List BGNL? '放缩比例' Number '动画时间' Int '不等待执行完毕' Bool Newline
+       
+
+/* scaleImage_s
+tooltip : scaleImage：图片放缩
+helpUrl : /_docs/#/instruction
+default : [1,'','','',0.8,0,false]
+colour : this.imageColor
+if (Number_0 <= 0) throw new Error('放缩比例需要大于0'); 
+var loc = '';
+if (PosString_0 && PosString_1)
+  loc = ', "center": ['+PosString_0+','+PosString_1+']';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
+var async = Bool_0?', "async": true':'';
+var code = '{"type": "scaleImage", "code": '+NInt_0+loc+', "scale": '+Number_0+MoveMode_List_0+', "time": '+Int_0+async+'},\n';
 return code;
 */;
 
 setCurtain_0_s
-    :   '更改画面色调' ColorString Colour '动画时间' IntString '持续到下一个本事件' Bool '不等待执行完毕' Bool Newline
+    :   '更改画面色调' ColorString Colour '动画时间' IntString? BGNL? Newline '渐变方式' MoveMode_List '持续到下一个本事件' Bool '不等待执行完毕' Bool Newline
     
 
 /* setCurtain_0_s
 tooltip : setCurtain: 更改画面色调,动画时间可不填
 helpUrl : /_docs/#/instruction
-default : ["255,255,255,1",'rgba(255,255,255,1)',500,true,false]
+default : ["255,255,255,1",'rgba(255,255,255,1)',500,'',true,false]
 colour : this.soundColor
 previewBlock : true
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
 Bool_0 = Bool_0 ? ', "keep": true' : '';
 var async = Bool_1?', "async": true':'';
-var code = '{"type": "setCurtain", "color": ['+ColorString_0+']'+IntString_0 +Bool_0+async+'},\n';
+var code = '{"type": "setCurtain", "color": ['+ColorString_0+']'+IntString_0+MoveMode_List_0+Bool_0+async+'},\n';
 return code;
 */;
 
 setCurtain_1_s
-    :   '恢复画面色调' '动画时间' IntString? '不等待执行完毕' Bool Newline
+    :   '恢复画面色调' '动画时间' IntString? '渐变方式' MoveMode_List '不等待执行完毕' Bool Newline
     
 
 /* setCurtain_1_s
 tooltip : setCurtain: 恢复画面色调,动画时间可不填
 helpUrl : /_docs/#/instruction
-default : [500,false]
+default : [500,'',false]
 colour : this.soundColor
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
 var async = Bool_0?', "async": true':'';
-var code = '{"type": "setCurtain"'+IntString_0 +async+'},\n';
+var code = '{"type": "setCurtain"'+IntString_0+MoveMode_List_0 +async+'},\n';
 return code;
 */;
 
 screenFlash_s
-    :   '画面闪烁' ColorString Colour '单次时间' Int '执行次数' IntString? '不等待执行完毕' Bool Newline
+    :   '画面闪烁' ColorString Colour '单次时间' Int '执行次数' IntString? '渐变方式' MoveMode_List '不等待执行完毕' Bool Newline
 
 /* screenFlash_s
 tooltip : screenFlash: 画面闪烁,动画时间可不填
 helpUrl : /_docs/#/instruction
-default : ["255,255,255,1",'rgba(255,255,255,1)',500,1,false]
+default : ["255,255,255,1",'rgba(255,255,255,1)',500,1,'',false]
 colour : this.soundColor
 if (ColorString_0 == '') throw new Error('颜色格式错误,形如:0~255,0~255,0~255,0~1');
 IntString_0 = IntString_0 ? (', "times": '+IntString_0):'';
+MoveMode_List_0 = (MoveMode_List_0!=='') ? (', "moveMode": "'+MoveMode_List_0+'"'):'';
 var async = Bool_0?', "async": true':'';
-var code = '{"type": "screenFlash", "color": ['+ColorString_0+'], "time": '+Int_0 +IntString_0+async+'},\n';
+var code = '{"type": "screenFlash", "color": ['+ColorString_0+'], "time": '+Int_0 +IntString_0+MoveMode_List_0+async+'},\n';
 return code;
 */;
 
@@ -2026,13 +2370,13 @@ return code;
 */;
 
 move_s
-    :   '移动事件' 'x' PosString? ',' 'y' PosString? '动画时间' IntString? '不消失' Bool '不等待执行完毕' Bool BGNL? StepString Newline
+    :   '移动事件' 'x' PosString? ',' 'y' PosString? '动画时间' IntString? '不消失' Bool '不等待执行完毕' Bool BGNL? moveDirection+ Newline
     
 
 /* move_s
 tooltip : move: 让某个NPC/怪物移动,位置可不填代表当前事件
 helpUrl : /_docs/#/instruction
-default : ["","",500,false,false,"上右3下2后4左前2"]
+default : ["","",500,true,false,null]
 selectPoint : ["PosString_0", "PosString_1"]
 colour : this.mapColor
 var floorstr = '';
@@ -2042,8 +2386,20 @@ if (PosString_0 && PosString_1) {
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
 Bool_0 = Bool_0?', "keep": true':'';
 Bool_1 = Bool_1?', "async": true':'';
-var code = '{"type": "move"'+floorstr+IntString_0+Bool_0+Bool_1+', "steps": '+JSON.stringify(StepString_0)+'},\n';
+var code = '{"type": "move"'+floorstr+IntString_0+Bool_0+Bool_1+', "steps": ['+moveDirection_0.trim().substring(2)+']},\n';
 return code;
+*/;
+
+moveDirection
+    :   '移动方向' Move_List '格数' Int Newline
+
+/* moveDirection
+tooltip : 移动方向
+helpUrl : /_docs/#/instruction
+default : ["up", 0]
+colour : this.subColor
+if (Move_List_0 == 'speed' && Int_0 < 16) throw '设置的移动速度值不得小于16';
+return ', "' + Move_List_0 + ':' + Int_0 + '"';
 */;
 
 moveAction_s
@@ -2060,17 +2416,17 @@ return '{"type": "moveAction"},\n';
 
 
 moveHero_s
-    :   '无视地形移动勇士' '动画时间' IntString? '不等待执行完毕' Bool BGNL? StepString Newline
+    :   '无视地形移动勇士' '动画时间' IntString? '不等待执行完毕' Bool BGNL? moveDirection+ Newline
     
 
 /* moveHero_s
 tooltip : moveHero：移动勇士,用这种方式移动勇士的过程中将无视一切地形, 无视一切事件, 中毒状态也不会扣血
 helpUrl : /_docs/#/instruction
 default : ["",false,"上右3下2后4左前2"]
-colour : this.dataColor
+colour : this.mapColor
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
 Bool_0 = Bool_0?', "async": true':'';
-var code = '{"type": "moveHero"'+IntString_0+Bool_0+', "steps": '+JSON.stringify(StepString_0)+'},\n';
+var code = '{"type": "moveHero"'+IntString_0+Bool_0+', "steps": ['+moveDirection_0.trim().substring(2)+']},\n';
 return code;
 */;
 
@@ -2134,7 +2490,7 @@ tooltip : jumpHero: 跳跃勇士
 helpUrl : /_docs/#/instruction
 default : ["","",500,false]
 selectPoint : ["PosString_0", "PosString_1"]
-colour : this.dataColor
+colour : this.mapColor
 var floorstr = '';
 if (PosString_0 && PosString_1) {
     floorstr = ', "loc": ['+PosString_0+','+PosString_1+']';
@@ -2153,7 +2509,7 @@ jumpHero_1_s
 tooltip : jumpHero: 跳跃勇士，给定增量
 helpUrl : /_docs/#/instruction
 default : ["0","0",500,false]
-colour : this.dataColor
+colour : this.mapColor
 var floorstr = '';
 if (PosString_0 && PosString_1) {
     floorstr = ', "dxy": ['+PosString_0+','+PosString_1+']';
@@ -2174,7 +2530,7 @@ helpUrl : /_docs/#/instruction
 default : ["bgm.mp3", 0, true]
 allBgms : ['EvalString_0']
 material : ["./project/bgms/", "EvalString_0"]
-colour : this.soundColor
+colour : this.imageColor
 Int_0 = Int_0 ? (', "startTime": '+Int_0) : '';
 Bool_0 = Bool_0 ? ', "keep": true' : '';
 var code = '{"type": "playBgm", "name": "'+EvalString_0+'"'+Int_0+Bool_0+'},\n';
@@ -2188,7 +2544,7 @@ pauseBgm_s
 /* pauseBgm_s
 tooltip : pauseBgm: 暂停背景音乐
 helpUrl : /_docs/#/instruction
-colour : this.soundColor
+colour : this.imageColor
 var code = '{"type": "pauseBgm"},\n';
 return code;
 */;
@@ -2200,7 +2556,7 @@ resumeBgm_s
 /* resumeBgm_s
 tooltip : resumeBgm: 恢复背景音乐
 helpUrl : /_docs/#/instruction
-colour : this.soundColor
+colour : this.imageColor
 Bool_0 = Bool_0 ? ', "resume": true' : '';
 var code = '{"type": "resumeBgm"' + Bool_0 + '},\n';
 return code;
@@ -2216,7 +2572,7 @@ helpUrl : /_docs/#/instruction
 default : ["bgm.mp3"]
 allBgms : ['EvalString_0']
 material : ["./project/bgms/", "EvalString_0"]
-colour : this.soundColor
+colour : this.imageColor
 var code = '{"type": "loadBgm", "name": "'+EvalString_0+'"},\n';
 return code;
 */;
@@ -2230,24 +2586,48 @@ tooltip : freeBgm: 释放背景音乐的缓存
 helpUrl : /_docs/#/instruction
 default : ["bgm.mp3"]
 allBgms : ['EvalString_0']
-colour : this.soundColor
+colour : this.imageColor
 var code = '{"type": "freeBgm", "name": "'+EvalString_0+'"},\n';
 return code;
 */;
 
 playSound_s
-    :   '播放音效' EvalString '停止之前音效' Bool? Newline
+    :   '播放音效' EvalString '停止之前音效' Bool? '音调' IntString? '等待播放完毕' Bool? Newline
     
 
 /* playSound_s
 tooltip : playSound: 播放音效
 helpUrl : /_docs/#/instruction
-default : ["item.mp3",false]
-colour : this.soundColor
+default : ["item.mp3",false,"",false]
+colour : this.imageColor
 allSounds : ['EvalString_0']
 material : ["./project/sounds/", "EvalString_0"]
+if (IntString_0) {
+    if (parseInt(IntString_0) < 30 || parseInt(IntString_0) > 300) throw '音调设置只能在30-300之间；100为正常音调。';
+    IntString_0 = ', "pitch": ' + IntString_0;
+} else IntString_0 = '';
 Bool_0 = Bool_0 ? ', "stop": true' : '';
-var code = '{"type": "playSound", "name": "'+EvalString_0+'"'+Bool_0+'},\n';
+Bool_1 = Bool_1 ? ', "sync": true' : '';
+var code = '{"type": "playSound", "name": "'+EvalString_0+'"'+Bool_0+IntString_0+Bool_1+'},\n';
+return code;
+*/;
+
+playSound_1_s
+    :   '播放系统音效' NameMap_List '停止之前音效' Bool? '音调' IntString? '等待播放完毕' Bool? Newline
+    
+
+/* playSound_1_s
+tooltip : playSound: 播放系统音效
+helpUrl : /_docs/#/instruction
+default : ["确定",false,"",false]
+colour : this.imageColor
+if (IntString_0) {
+    if (parseInt(IntString_0) < 30 || parseInt(IntString_0) > 300) throw '音调设置只能在30-300之间；100为正常音调。';
+    IntString_0 = ', "pitch": ' + IntString_0;
+} else IntString_0 = '';
+Bool_0 = Bool_0 ? ', "stop": true' : '';
+Bool_1 = Bool_1 ? ', "sync": true' : '';
+var code = '{"type": "playSound", "name": "'+NameMap_List_0+'"'+Bool_0+IntString_0+Bool_1+'},\n';
 return code;
 */;
 
@@ -2258,7 +2638,7 @@ stopSound_s
 /* stopSound_s
 tooltip : stopSound: 停止所有音效
 helpUrl : /_docs/#/instruction
-colour : this.soundColor
+colour : this.imageColor
 var code = '{"type": "stopSound"},\n';
 return code;
 */;
@@ -2271,10 +2651,25 @@ setVolume_s
 tooltip : setVolume: 设置音量
 helpUrl : /_docs/#/instruction
 default : [90, 500, false]
-colour : this.soundColor
+colour : this.imageColor
 IntString_0 = IntString_0 ?(', "time": '+IntString_0):'';
 var async = Bool_0?', "async": true':'';
 var code = '{"type": "setVolume", "value": '+Int_0+IntString_0+async+'},\n';
+return code;
+*/;
+
+setBgmSpeed_s
+    :   '设置背景音乐播放速度' Int '同时改变音调' Bool Newline
+    
+
+/* setBgmSpeed_s
+tooltip : setSpeed: 设置背景音乐播放速度
+helpUrl : /_docs/#/instruction
+default : [100, true]
+colour : this.imageColor
+if (Int_0 < 30 || Int_0 > 300) throw '速度只能设置只能在30-300之间；100为正常速度。';
+Bool_0 = Bool_0?', "pitch": true':'';
+var code = '{"type": "setBgmSpeed", "value": '+Int_0+Bool_0+'},\n';
 return code;
 */;
 
@@ -2349,8 +2744,10 @@ if_s
 tooltip : if: 条件判断
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = ['{"type": "if", "condition": "',expression_0,'",',block.isCollapsed()?'"_collapsed": true,\n':'\n',
-    '"true": [\n',action_0,'],\n',
+var code = ['{"type": "if", "condition": "',expression_0,'",',
+    block.isCollapsed()?' "_collapsed": true,':'',
+    block.isEnabled()?'':' "_disabled": true,',
+    '\n"true": [\n',action_0,'],\n',
     '"false": [\n',action_1,']',
 '},\n'].join('');
 return code;
@@ -2364,8 +2761,10 @@ if_1_s
 tooltip : if: 条件判断
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = ['{"type": "if", "condition": "',expression_0,'",',block.isCollapsed()?'"_collapsed": true,\n':'\n',
-    '"true": [\n',action_0,']',
+var code = ['{"type": "if", "condition": "',expression_0,'",',
+    block.isCollapsed()?' "_collapsed": true,':'',
+    block.isEnabled()?'':' "_disabled": true,',
+    '\n"true": [\n',action_0,']',
 '},\n'].join('');
 return code;
 */;
@@ -2379,7 +2778,10 @@ tooltip : switch: 多重条件分歧
 helpUrl : /_docs/#/instruction
 default : ["判别值"]
 colour : this.eventColor
-var code = ['{"type": "switch", "condition": "',expression_0,'", ',block.isCollapsed()?'"_collapsed": true, ':'','"caseList": [\n',
+var code = ['{"type": "switch", "condition": "',expression_0,'", ',
+    block.isCollapsed()?'"_collapsed": true, ':'',
+    block.isEnabled()?'':'"_disabled": true, ',
+    '"caseList": [\n',
     switchCase_0,
 '], },\n'].join('');
 return code;
@@ -2396,19 +2798,20 @@ default : ["", false]
 colour : this.subColor
 Bool_0 = Bool_0?', "nobreak": true':'';
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = '{"case": "'+expression_0+'"'+Bool_0+collapsed+', "action": [\n'+action_0+']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"case": "'+expression_0+'"'+Bool_0+collapsed+disabled+', "action": [\n'+action_0+']},\n';
 return code;
 */;
 
 choices_s
-    :   '选项' ':' EvalString_Multi? BGNL? '标题' EvalString? '图像' IdString? '超时毫秒数' Int BGNL? Newline choicesContext+ BEND Newline
+    :   '选项' ':' EvalString_Multi? BGNL? '标题' EvalString? '图像' IdString? '超时毫秒数' Int '宽度' IntString? BGNL? Newline choicesContext+ BEND Newline
 
 
 /* choices_s
 tooltip : choices: 给用户提供选项
 helpUrl : /_docs/#/instruction
-doubleclicktext : EvalString_Multi_0
-default : ["","流浪者","trader",0]
+previewBlock : true
+default : ["","流浪者","trader",0,'']
 allIds : ['IdString_0']
 var title='';
 if (EvalString_0==''){
@@ -2421,7 +2824,11 @@ if (EvalString_0==''){
 EvalString_Multi_0 = title+EvalString_Multi_0;
 EvalString_Multi_0 = EvalString_Multi_0 ?(', "text": "'+EvalString_Multi_0+'"'):'';
 Int_0 = Int_0 ? (', "timeout": '+Int_0) : '';
-var code = ['{"type": "choices"',EvalString_Multi_0,Int_0,block.isCollapsed()?', "_collapsed": true':'',', "choices": [\n',
+IntString_0 = IntString_0 ? (', "width": ' + IntString_0) : '';
+var code = ['{"type": "choices"',EvalString_Multi_0,Int_0,IntString_0,
+    block.isCollapsed()?', "_collapsed": true':'',
+    block.isEnabled()?'':', "_disabled": true',
+    ', "choices": [\n',
     choicesContext_0,
 ']},\n'].join('');
 return code;
@@ -2442,7 +2849,8 @@ EvalString_1 = EvalString_1 && (', "need": "'+EvalString_1+'"');
 EvalString_2 = EvalString_2 && (', "condition": "'+EvalString_2+'"');
 IdString_0 = IdString_0?(', "icon": "'+IdString_0+'"'):'';
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = '{"text": "'+EvalString_0+'"'+IdString_0+ColorString_0+EvalString_1+EvalString_2+collapsed+', "action": [\n'+action_0+']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"text": "'+EvalString_0+'"'+IdString_0+ColorString_0+EvalString_1+EvalString_2+collapsed+disabled+', "action": [\n'+action_0+']},\n';
 return code;
 */;
 
@@ -2453,11 +2861,13 @@ confirm_s
 tooltip : 弹出确认框
 helpUrl : /_docs/#/instruction
 default : ["确认要xxx吗?",0,false]
-doubleclicktext : EvalString_Multi_0
+previewBlock : true
 Bool_0 = Bool_0?', "default": true':''
 Int_0 = Int_0 ? (', "timeout": '+Int_0) : '';
-var code = ['{"type": "confirm"'+Int_0+Bool_0+', "text": "',EvalString_Multi_0,'",',block.isCollapsed()?'"_collapsed": true,\n':'\n',
-    '"yes": [\n',action_0,'],\n',
+var code = ['{"type": "confirm"'+Int_0+Bool_0+', "text": "',EvalString_Multi_0,'",',
+    block.isCollapsed()?' "_collapsed": true,':'',
+    block.isEnabled()?'':' "_disabled": true,',
+    '\n"yes": [\n',action_0,'],\n',
     '"no": [\n',action_1,']\n',
 '},\n'].join('');
 return code;
@@ -2474,7 +2884,8 @@ if (!/^temp:[A-Z]$/.test(expression_0)) {
   throw new Error('循环遍历仅允许使用临时变量！');
 }
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-return '{"type": "for", "name": "'+expression_0+'", "from": "'+EvalString_0+'", "to": "'+EvalString_1+'", "step": "'+EvalString_2+'"'+collapsed+',\n"data": [\n'+action_0+']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+return '{"type": "for", "name": "'+expression_0+'", "from": "'+EvalString_0+'", "to": "'+EvalString_1+'", "step": "'+EvalString_2+'"'+collapsed+disabled+',\n"data": [\n'+action_0+']},\n';
 */;    
 
 forEach_s
@@ -2491,7 +2902,8 @@ if (JsonEvalString_0 == '' || !(JSON.parse(JsonEvalString_0) instanceof Array)) 
   throw new Error('参数列表必须是个有效的数组！');
 }
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-return '{"type": "forEach", "name": "'+expression_0+'", "list": '+JsonEvalString_0 + collapsed+',\n"data": [\n'+action_0+']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+return '{"type": "forEach", "name": "'+expression_0+'", "list": '+JsonEvalString_0 + collapsed+disabled+',\n"data": [\n'+action_0+']},\n';
 */;
 
 while_s
@@ -2501,8 +2913,10 @@ while_s
 tooltip : while：前置条件循环
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = ['{"type": "while", "condition": "',expression_0,'",',block.isCollapsed()?'"_collapsed": true,\n':'\n',
-    '"data": [\n',action_0,'],\n',
+var code = ['{"type": "while", "condition": "',expression_0,'",',
+    block.isCollapsed()?' "_collapsed": true,':'',
+    block.isEnabled()?'':' "_disabled": true,',
+    '\n"data": [\n',action_0,'],\n',
 '},\n'].join('');
 return code;
 */;
@@ -2514,48 +2928,56 @@ dowhile_s
 tooltip : dowhile：后置条件循环
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = ['{"type": "dowhile", "condition": "',expression_0,'",',block.isCollapsed()?'"_collapsed": true,\n':'\n',
-    '"data": [\n',action_0,'],\n',
+var code = ['{"type": "dowhile", "condition": "',expression_0,'",',
+    block.isCollapsed()?' "_collapsed": true,':'',
+    block.isEnabled()?'':' "_disabled": true,',
+    '\n"data": [\n',action_0,'],\n',
 '},\n'].join('');
 return code;
 */;
 
 break_s
-    :   '跳出当前循环或公共事件' Newline
+    :   '跳出循环或公共事件' '层数' Int Newline
 
 /* break_s
 tooltip : break：跳出循环或公共事件！
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = '{"type": "break"},\n';
+default : [1]
+if (Int_0 <= 0) throw "层数至少为1！";
+var code = '{"type": "break", "n": '+Int_0+'},\n';
 return code;
 */;
 
 continue_s
-    :   '提前结束本轮循环或跳出公共事件' Newline
+    :   '提前结束循环或跳出公共事件' '层数' Int Newline
 
 /* continue_s
-tooltip : continue：继续执行当前循环的下一轮，或跳出公共事件！
+tooltip : continue：提前结束循环或跳出公共事件，或跳出公共事件！
 helpUrl : /_docs/#/instruction
 colour : this.eventColor
-var code = '{"type": "continue"},\n';
+default : [1]
+if (Int_0 <= 0) throw "层数至少为1！";
+var code = '{"type": "continue", "n": '+Int_0+'},\n';
 return code;
 */;
 
 
 wait_s
-    :   '等待用户操作并获得按键或点击信息' '超时毫秒数' Int BGNL? Newline waitContext* BEND Newline
+    :   '等待用户操作并获得按键或点击信息' '仅检测子块' Bool '超时毫秒数' Int BGNL? Newline waitContext* BEND Newline
 
 
 /* wait_s
 tooltip : wait: 等待用户操作并获得按键或点击信息
 helpUrl : /_docs/#/instruction
-default : [0]
+default : [true,0]
 colour : this.soundColor
+Bool_0 = Bool_0?(', "forceChild": true'):'';
 Int_0 = Int_0?(', "timeout": ' + Int_0):'';
 waitContext_0 = waitContext_0 ? (', "data": [\n' + waitContext_0 + ']') : '';
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = '{"type": "wait"' + Int_0 + collapsed + waitContext_0 + '},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"type": "wait"' + Bool_0 + Int_0 + collapsed + disabled + waitContext_0 + '},\n';
 return code;
 */;
 
@@ -2563,36 +2985,74 @@ return code;
 waitContext
     : waitContext_1
     | waitContext_2
+    | waitContext_3
+    | waitContext_4
     | waitContext_empty;
 
 
 waitContext_1
-    : '按键的场合' '键值' EvalString BGNL? Newline action+ BEND Newline
+    : '按键的场合：' '键值（右键查表）' EvalString '不进行剩余判定' Bool BGNL? Newline action+ BEND Newline
 
 /* waitContext_1
 tooltip : wait: 等待用户操作并获得按键或点击信息
 helpUrl : /_docs/#/instruction
 colour : this.subColor
+default : ["",false]
+menu : [["查询键值表", "editor_blockly.showKeyCodes()"]]
 if (!/^\d+(,\d+)*$/.test(EvalString_0)) {
   throw new Error('键值必须是正整数，可以以逗号分隔');
 }
+Bool_0 = Bool_0?', "break": true':'';
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = '{"case": "keyboard", "keycode": "' + EvalString_0 + '"'+collapsed+', "action": [\n' + action_0 + ']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"case": "keyboard", "keycode": "' + EvalString_0 + '"'+Bool_0+collapsed+disabled+', "action": [\n' + action_0 + ']},\n';
 return code;
 */;
 
 
 waitContext_2
-    : '点击的场合' '像素x范围' PosString '~' PosString '; y范围' PosString '~' PosString BGNL? Newline action+ BEND Newline
+    : '点击的场合：' '像素x范围' PosString '~' PosString '; y范围' PosString '~' PosString '不进行剩余判定' Bool BGNL? Newline action+ BEND Newline
 
 /* waitContext_2
 tooltip : wait: 等待用户操作并获得按键或点击信息
 helpUrl : /_docs/#/instruction
-default : [0,32,0,32]
+default : [0,32,0,32,false]
 previewBlock : true
 colour : this.subColor
+Bool_0 = Bool_0?', "break": true':'';
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = '{"case": "mouse", "px": [' + PosString_0 + ',' + PosString_1 + '], "py": [' + PosString_2 + ',' + PosString_3 + ']'+collapsed+', "action": [\n' + action_0 + ']},\n';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"case": "mouse", "px": [' + PosString_0 + ',' + PosString_1 + '], "py": [' + PosString_2 + ',' + PosString_3 + ']'+Bool_0+collapsed+disabled+', "action": [\n' + action_0 + ']},\n';
+return code;
+*/;
+
+waitContext_3
+    : '自定义条件的场合：' expression '不进行剩余判定' Bool BGNL? Newline action+ BEND Newline
+
+/* waitContext_3
+tooltip : wait: 等待用户操作并获得按键或点击信息
+helpUrl : /_docs/#/instruction
+default : ["true",false]
+colour : this.subColor
+Bool_0 = Bool_0?', "break": true':'';
+var collapsed=block.isCollapsed()?', "_collapsed": true':'';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"case": "condition", "condition": "'+expression_0+'"'+Bool_0+collapsed+disabled+', "action": [\n' + action_0 + ']},\n';
+return code;
+*/;
+
+waitContext_4
+    : '超时的场合：' '不进行剩余判定' Bool BGNL? Newline action+ BEND Newline
+
+/* waitContext_4
+tooltip : wait: 等待用户操作并获得按键或点击信息
+helpUrl : /_docs/#/instruction
+colour : this.subColor
+default : [false]
+Bool_0 = Bool_0?', "break": true':'';
+var collapsed=block.isCollapsed()?', "_collapsed": true':'';
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = '{"case": "timeout"'+Bool_0+collapsed+disabled+', "action": [\n' + action_0 + ']},\n';
 return code;
 */;
 
@@ -2604,14 +3064,30 @@ return '';
 
 
 waitAsync_s
-    :   '等待所有异步事件执行完毕'
+    :   '等待所有异步事件执行完毕' '不等待动画' Bool '等待音效' Bool
 
 
 /* waitAsync_s
 tooltip : waitAsync: 等待所有异步事件执行完毕
 helpUrl : /_docs/#/instruction
+default : [false, false]
 colour : this.soundColor
-var code = '{"type": "waitAsync"},\n';
+Bool_0 = Bool_0 ? ', "excludeAnimates": true' : '';
+Bool_1 = Bool_1 ? ', "includeSounds": true' : '';
+var code = '{"type": "waitAsync"'+Bool_0+Bool_1+'},\n';
+return code;
+*/;
+
+
+stopAsync_s
+    :   '立刻结束所有异步事件' BGNL Newline
+
+
+/* stopAsync_s
+tooltip : stopAsync: 立刻结束所有异步事件
+helpUrl : /_docs/#/instruction
+colour : this.soundColor
+var code = '{"type": "stopAsync"},\n';
 return code;
 */;
 
@@ -2643,7 +3119,7 @@ return code;
 
 
 autoSave_s
-    :   '自动存档' '不提示' Bool Newline
+    :   '自动存档' '读档到触发前' Bool Newline
 
 
 /* autoSave_s
@@ -2651,8 +3127,23 @@ tooltip : autoSave: 自动存档
 helpUrl : /_docs/#/instruction
 colour : this.soundColor
 default : [false]
-Bool_0 = Bool_0 ? (', "nohint": true') : '';
+Bool_0 = Bool_0 ? (', "removeLast": true') : '';
 var code = '{"type": "autoSave"'+Bool_0+'},\n';
+return code;
+*/;
+
+
+forbidSave_s
+    :   '是否禁止存档' Bool Newline
+
+
+/* forbidSave_s
+tooltip : forbidSave: 禁止存档
+helpUrl : /_docs/#/instruction
+colour : this.soundColor
+default : [false]
+Bool_0 = Bool_0 ? (', "forbid": true') : '';
+var code = '{"type": "forbidSave"'+Bool_0+'},\n';
 return code;
 */;
 
@@ -2679,7 +3170,8 @@ tooltip : previewUI: ui绘制并预览
 helpUrl : /_docs/#/instruction
 previewBlock : true
 var collapsed=block.isCollapsed()?', "_collapsed": true':'';
-var code = ['{"type": "previewUI"'+collapsed+', "action": [\n', action_0,']},\n'].join('');
+var disabled=block.isEnabled()?'':', "_disabled": true';
+var code = ['{"type": "previewUI"'+collapsed+disabled+', "action": [\n', action_0,']},\n'].join('');
 return code;
 */;
 
@@ -2690,7 +3182,7 @@ clearMap_s
 /* clearMap_s
 tooltip : clearMap: 清除画布
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 default : ["", "", "", ""]
 previewBlock : true
 PosString_0 = PosString_0 && (', "x": ' + PosString_0);
@@ -2709,7 +3201,7 @@ setAttribute_s
 tooltip : setAttribute：设置画布属性
 helpUrl : /_docs/#/instruction
 previewBlock : true
-colour : this.subColor
+colour : this.uiColor
 default : ["","",'rgba(255,255,255,1)',"",'rgba(255,255,255,1)',"","",null,null,""]
 TextAlign_List_0 = TextAlign_List_0==='null'?'': ', "align": "'+TextAlign_List_0+'"';
 TextBaseline_List_0 = TextBaseline_List_0==='null'?'': ', "baseline": "'+TextBaseline_List_0+'"';
@@ -2728,13 +3220,33 @@ var code = '{"type": "setAttribute"'+FontString_0+ColorString_0+ColorString_1+In
 return code;
 */;
 
+
+setFilter_s
+    :   '设置画布特效' '虚化' Number '色相' Int '灰度' Number '反色' Bool '阴影' Number Newline
+    
+
+/* setFilter_s
+tooltip : setFilter: 设置画布特效
+helpUrl : /_docs/#/instruction
+default : [0,0,0,false,0]
+previewBlock : true
+colour : this.uiColor
+if (Number_0 < 0) throw '虚化不得小于0；0为完全没有虚化';
+if (Int_0 < 0 || Int_0 >= 360) throw '色相需要在0~359之间';
+if (Number_1 < 0 || Number_1 > 1) throw '灰度需要在0~1之间';
+if (Number_2 < 0) throw '阴影不得小于0；0为完全没有阴影';
+var code = '{"type": "setFilter", "blur": '+Number_0+', "hue": '+Int_0+', "grayscale": '+Number_1+', "invert": '+Bool_0+', "shadow": '+Number_2+'},\n';
+return code;
+*/;
+
+
 fillText_s
     :   '绘制文本' 'x' PosString 'y' PosString '样式' ColorString? Colour '字体' FontString? '最大宽度' IntString? BGNL? EvalString Newline
 
 /* fillText_s
 tooltip : fillText：绘制一行文本；可以设置最大宽度进行放缩
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","",'rgba(255,255,255,1)',"","","绘制一行文本"]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2750,7 +3262,7 @@ fillBoldText_s
 /* fillBoldText_s
 tooltip : fillBoldText：绘制一行描边文本
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","",'rgba(255,255,255,1)',"",'rgba(0,0,0,1)',"","绘制一行描边文本"]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2767,7 +3279,8 @@ drawTextContent_s
 tooltip : drawTextContent：绘制多行文本
 helpUrl : /_docs/#/instruction
 doubleclicktext : EvalString_Multi_0
-colour : this.subColor
+menu : [['预览多行文本','editor_blockly.previewBlock(block)']]
+colour : this.uiColor
 default : ["绘制多行文本\\n可双击编辑","0","0","","",'rgba(255,255,255,1)',null,"","",false]
 TextAlign_List_0 = TextAlign_List_0==='null'?'': ', "align": "'+TextAlign_List_0+'"';
 Bool_0 = Bool_0 ?  (', "bold": true') : '';
@@ -2785,7 +3298,7 @@ fillRect_s
 /* fillRect_s
 tooltip : fillRect：绘制矩形
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","flag:x","300","","","","rgba(255,255,255,1)"]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2801,7 +3314,7 @@ strokeRect_s
 /* strokeRect_s
 tooltip : strokeRect：绘制矩形边框
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","flag:x","300","","","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2818,7 +3331,7 @@ drawLine_s
 /* drawLine_s
 tooltip : drawLine：绘制线段
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","flag:x","300","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2833,7 +3346,7 @@ drawArrow_s
 /* drawArrow_s
 tooltip : drawArrow：绘制箭头
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","flag:x","300","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2849,7 +3362,7 @@ fillPolygon_s
 /* fillPolygon_s
 tooltip : fillPolygon：绘制多边形
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0,0,100","0,100,0","","rgba(255,255,255,1)"]
 var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
@@ -2870,7 +3383,7 @@ strokePolygon_s
 /* strokePolygon_s
 tooltip : strokePolygon：绘制多边形边框
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0,0,100","0,100,0","","rgba(255,255,255,1)",""]
 var pattern2 = /^([+-]?\d+)(,[+-]?\d+)*$/;
@@ -2891,7 +3404,7 @@ fillEllipse_s
 /* fillEllipse_s
 tooltip : fillEllipse：绘制椭圆
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","100","100","0","","rgba(255,255,255,1)"]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2906,7 +3419,7 @@ strokeEllipse_s
 /* strokeEllipse_s
 tooltip : strokeEllipse：绘制椭圆边框
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 default : ["0","0","100","100","0","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
@@ -2922,7 +3435,7 @@ fillArc_s
 /* fillArc_s
 tooltip : fillArc：绘制扇形
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 default : ["0","0","100","0","90","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
 var code = '{"type": "fillArc", "x": '+PosString_0+', "y": '+PosString_1+', "r": '+PosString_2+', "start": '+PosString_3+', "end": '+PosString_4+ColorString_0+'},\n';
@@ -2936,7 +3449,7 @@ strokeArc_s
 /* strokeArc_s
 tooltip : strokeArc：绘制弧
 helpUrl : /_docs/#/instruction
-colour : this.subColor
+colour : this.uiColor
 default : ["0","0","100","0","90","","rgba(255,255,255,1)",""]
 ColorString_0 = ColorString_0 ? (', "style": ['+ColorString_0+']') : '';
 IntString_0 = IntString_0 ? (', "lineWidth": '+IntString_0) : '';
@@ -2956,7 +3469,7 @@ helpUrl : /_docs/#/instruction
 previewBlock : true
 allImages : ['EvalString_0']
 default : ["bg.jpg","null","0","0","","",""]
-colour : this.subColor
+colour : this.uiColor
 if (Reverse_List_0 && Reverse_List_0 != 'null') {
     Reverse_List_0 = ', "reverse": "' + Reverse_List_0 + '"';
 } else Reverse_List_0 = '';
@@ -2976,7 +3489,7 @@ drawImage_1_s
 tooltip : drawImage：绘制图片
 helpUrl : /_docs/#/instruction
 default : ["bg.jpg","null","0","0","32","32","0","0","32","32",""]
-colour : this.subColor
+colour : this.uiColor
 allImages : ['EvalString_0']
 previewBlock : true
 if (Reverse_List_0 && Reverse_List_0 != 'null') {
@@ -2999,7 +3512,7 @@ helpUrl : /_docs/#/instruction
 default : ["yellowKey",0,"0","0","",""]
 previewBlock : true
 allIds : ['IdString_0']
-colour : this.subColor
+colour : this.uiColor
 Int_0 = Int_0 ? (', "frame": '+Int_0) : '';
 PosString_2 = PosString_2 ? (', "width": '+PosString_2) : '';
 PosString_3 = PosString_3 ? (', "height": '+PosString_3) : '';
@@ -3015,7 +3528,7 @@ drawBackground_s
 tooltip : drawBackground：绘制背景
 helpUrl : /_docs/#/instruction
 default : ["winskin.png","rgba(255,255,255,1)","0","0","100","100"]
-colour : this.subColor
+colour : this.uiColor
 previewBlock : true
 var colorRe = MotaActionFunctions.pattern.colorRe;
 if (colorRe.test(EvalString_0)) {
@@ -3040,7 +3553,7 @@ tooltip : drawSelector：绘制闪烁光标
 helpUrl : /_docs/#/instruction
 previewBlock : true
 default : ["winskin.png","1","0","0","100","100"]
-colour : this.subColor
+colour : this.uiColor
 var code = '{"type": "drawSelector", "image": "'+EvalString_0+'", "code": '+Int_0+', "x": '+PosString_0+', "y": '+PosString_1+', "width": '+PosString_2+', "height": '+PosString_3+'},\n';
 return code;
 */;
@@ -3054,7 +3567,7 @@ tooltip : drawSelector：清除闪烁光标
 helpUrl : /_docs/#/instruction
 default : ["1"]
 previewBlock : true
-colour : this.subColor
+colour : this.uiColor
 var code = '{"type": "drawSelector", "code": '+Int_0+'},\n';
 return code;
 */;
@@ -3117,6 +3630,15 @@ expression
     |   blockNumber_e
     |   blockCls_e
     |   equip_e
+    |   nextXY_e
+    |   isReplaying_e
+    |   hasVisitedFloor_e
+    |   isShopVisited_e
+    |   hasEquip_e
+    |   canBattle_e
+    |   damage_e
+    |   damage_1_e
+    |   rand_e
     |   evalString_e
     
 
@@ -3127,6 +3649,9 @@ var ops = {
     '**': 'Math.pow('+expression_0+','+expression_1+')',
     'min': 'Math.min('+expression_0+','+expression_1+')',
     'max': 'Math.max('+expression_0+','+expression_1+')',
+    'startsWith': expression_0+'.startsWith('+expression_1+')',
+    'endsWith': expression_0+'.endsWith('+expression_1+')',
+    'includes': expression_0+'.includes('+expression_1+')',
 }
 if (ops[Arithmetic_List_0])code = ops[Arithmetic_List_0];
 var orders = {
@@ -3149,6 +3674,9 @@ var orders = {
     '^': Blockly.JavaScript.ORDER_BITWISE_XOR,
     'min': Blockly.JavaScript.ORDER_MEMBER, //recieveOrder : ORDER_COMMA
     'max': Blockly.JavaScript.ORDER_MEMBER, //recieveOrder : ORDER_COMMA
+    'startsWith': Blockly.JavaScript.ORDER_MEMBER, //recieveOrder : ORDER_COMMA
+    'endsWith': Blockly.JavaScript.ORDER_MEMBER, //recieveOrder : ORDER_COMMA
+    'includes': Blockly.JavaScript.ORDER_MEMBER, //recieveOrder : ORDER_COMMA
 }
 return [code, orders[Arithmetic_List_0]];
 */;
@@ -3168,7 +3696,7 @@ unaryOperation_e
     
 
 /* unaryOperation_e
-var code = UnaryOperator_List_0 + expression_0;
+var code = UnaryOperator_List_0 + '(' + expression_0 + ')';
 return [code, Blockly.JavaScript.ORDER_MEMBER];
 */;
 
@@ -3222,7 +3750,7 @@ enemyattr_e
 
 
 /* enemyattr_e
-default : ['greenSlime',"攻击"]
+default : ['greenSlime',"hp"]
 allEnemys : ['IdString_0']
 var code = 'enemy:'+IdString_0+':'+EnemyId_List_0;
 return [code, Blockly.JavaScript.ORDER_ATOMIC];
@@ -3230,40 +3758,164 @@ return [code, Blockly.JavaScript.ORDER_ATOMIC];
 
 
 blockId_e
-    :   '图块ID:' Int ',' Int
+    :   '图块ID:' PosString ',' PosString
 
 
 /* blockId_e
 default : [0,0]
-var code = 'blockId:'+Int_0+','+Int_1;
-return [code, Blockly.JavaScript.ORDER_ATOMIC];
+if (/^\d+$/.test(PosString_0) && /^\d+$/.test(PosString_1)) {
+    return ['blockId:'+PosString_0+','+PosString_1, Blockly.JavaScript.ORDER_ATOMIC];
+}
+if (PosString_0.startsWith('"')) {
+    PosString_0 = PosString_0.substring(1, PosString_0.length - 1);
+}
+if (PosString_1.startsWith('"')) {
+    PosString_1 = PosString_1.substring(1, PosString_1.length - 1);
+}
+return ['core.getBlockId('+PosString_0+','+PosString_1+')', Blockly.JavaScript.ORDER_ATOMIC];
 */;
 
 
 blockNumber_e
-    :   '图块数字:' Int ',' Int
+    :   '图块数字:' PosString ',' PosString
 
 
 /* blockNumber_e
 default : [0,0]
-var code = 'blockNumber:'+Int_0+','+Int_1;
-return [code, Blockly.JavaScript.ORDER_ATOMIC];
+if (/^\d+$/.test(PosString_0) && /^\d+$/.test(PosString_1)) {
+    return ['blockNumber:'+PosString_0+','+PosString_1, Blockly.JavaScript.ORDER_ATOMIC];
+}
+if (PosString_0.startsWith('"')) {
+    PosString_0 = PosString_0.substring(1, PosString_0.length - 1);
+}
+if (PosString_1.startsWith('"')) {
+    PosString_1 = PosString_1.substring(1, PosString_1.length - 1);
+}
+return ['core.getBlockNumber('+PosString_0+','+PosString_1+')', Blockly.JavaScript.ORDER_ATOMIC];
 */;
 
 
 blockCls_e
-    :   '图块类别:' Int ',' Int
+    :   '图块类别:' PosString ',' PosString
 
 
 /* blockCls_e
 default : [0,0]
-var code = 'blockCls:'+Int_0+','+Int_1;
+if (/^\d+$/.test(PosString_0) && /^\d+$/.test(PosString_1)) {
+    return ['blockCls:'+PosString_0+','+PosString_1, Blockly.JavaScript.ORDER_ATOMIC];
+}
+if (PosString_0.startsWith('"')) {
+    PosString_0 = PosString_0.substring(1, PosString_0.length - 1);
+}
+if (PosString_1.startsWith('"')) {
+    PosString_1 = PosString_1.substring(1, PosString_1.length - 1);
+}
+return ['core.getBlockCls('+PosString_0+','+PosString_1+')', Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+nextXY_e
+    :   '前方' NInt '格的' NextXY_List
+
+/* nextXY_e
+default : [1, 'nextX']
+var code = NextXY_List_0 == 'nextY' ? ('core.nextY('+NInt_0+')') : ('core.nextX('+NInt_0+')');
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+isReplaying_e
+    :   '录像播放中'
+
+/* isReplaying_e
+var code = 'core.isReplaying()';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];;
+*/;
+
+
+hasVisitedFloor_e
+    :   '访问过楼层' IdString
+
+/* hasVisitedFloor_e
+default : ['MT0']
+allFloorIds : ['IdString_0']    
+var code = 'core.hasVisitedFloor(\'' + IdString_0 + '\')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+isShopVisited_e
+    :   '开启过商店' IdString
+
+/* isShopVisited_e
+default : ['shop1']
+allShops : ['IdString_0']    
+var code = 'core.isShopVisited(\'' + IdString_0 + '\')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+hasEquip_e
+    :   '当前正在装备' IdString
+
+/* hasEquip_e
+default : ['sword1']
+allEquips : ['IdString_0']    
+var code = 'core.hasEquip(\'' + IdString_0 + '\')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+canBattle_e
+    :   '当前能否战斗' IdString
+
+/* canBattle_e
+default : ['greenSlime']
+allEnemys : ['IdString_0']
+var code = 'core.canBattle(\'' + IdString_0 + '\')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+damage_e
+    :   '战斗伤害' '怪物ID' IdString
+
+/* damage_e
+default : ['greenSlime']
+allEnemys : ['IdString_0']
+var code = 'core.getDamage(\'' + IdString_0 + '\')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+damage_1_e
+    :   '战斗伤害' '点坐标' 'x' PosString 'y' PosString
+
+/* damage_1_e
+default : [0, 0]
+if (PosString_0.startsWith('"')) {
+    PosString_0 = PosString_0.substring(1, PosString_0.length - 1);
+}
+if (PosString_1.startsWith('"')) {
+    PosString_1 = PosString_1.substring(1, PosString_1.length - 1);
+}
+var code = 'core.getDamage(null, ' + PosString_0 + ',' + PosString_1 + ')';
+return [code, Blockly.JavaScript.ORDER_ATOMIC];
+*/;
+
+
+rand_e
+    :   '随机数 [0, ' Int ')'
+
+/* rand_e
+default : ['10']
+var code = 'core.rand(' + Int_0 + ')';
 return [code, Blockly.JavaScript.ORDER_ATOMIC];
 */;
 
 
 equip_e
-    :   '装备孔:' Int
+    :   '第' Int '格装备孔'
 
 
 /* equip_e
@@ -3298,12 +3950,12 @@ return [code, Blockly.JavaScript.ORDER_ATOMIC];
 
 
 evalString_e
-    :   EvalString
+    :   EvalString_Multi
     
 
 /* evalString_e
 default : ["值"]
-var code = EvalString_0;
+var code = EvalString_Multi_0;
 return [code, Blockly.JavaScript.ORDER_ATOMIC];
 */;
 
@@ -3342,8 +3994,8 @@ Floor_List
     /*Floor_List ['floorId',':before',':next',':now']*/;
 
 Stair_List
-    :   '坐标'|'上楼梯'|'下楼梯'|'保持不变'|'中心对称点'|'x对称点'|'y对称点'
-    /*Stair_List ['loc','upFloor','downFloor',':now',':symmetry',':symmetry_x',':symmetry_y']*/;
+    :   '坐标'|'上楼梯'|'下楼梯'|'保持不变'|'中心对称点'|'x对称点'|'y对称点'|'楼传落点'
+    /*Stair_List ['loc','upFloor','downFloor',':now',':symmetry',':symmetry_x',':symmetry_y','flyPoint']*/;
 
 SetTextPosition_List
     :   '不改变'|'距离顶部'|'居中'|'距离底部'
@@ -3366,20 +4018,20 @@ ShopUse_List
     /*ShopUse_List ['money','exp']*/;
 
 Arithmetic_List
-    :   '加'|'减'|'乘'|'除'|'取余'|'乘方'|'等于'|'不等于'|'大于'|'小于'|'大于等于'|'小于等于'|'且'|'或'|'异或'|'取较大'|'取较小'|'弱相等'|'弱不相等'
-    /*Arithmetic_List ['+','-','*','/','%','**','===','!==','>','<','>=','<=','&&','||','^','max','min','==','!=']*/;
+    :   '加'|'减'|'乘'|'除'|'取余'|'乘方'|'等于'|'不等于'|'大于'|'小于'|'大于等于'|'小于等于'|'且'|'或'|'异或'|'取较大'|'取较小'|'弱相等'|'弱不相等'|'开始于'|'结束于'|'包含'
+    /*Arithmetic_List ['+','-','*','/','%','**','===','!==','>','<','>=','<=','&&','||','^','max','min','==','!=','startsWith','endsWith','includes']*/;
 
 AssignOperator_List
     :   '设为'|'增加'|'减少'|'乘以'|'除以'|'乘方'|'除以并取商'|'除以并取余'|'设为不小于'|'设为不大于'
-    /*AssignOperator_List ['=','+=','-=','*=','/=','**=','//=','%=','min=','max=']*/;  
+    /*AssignOperator_List ['=','+=','-=','*=','/=','**=','//=','%=','max=','min=']*/;  
 
 UnaryOperator_List
-    :   '向下取整'|'向上取整'|'四舍五入'|'整数截断'|'绝对值'|'开方'
-    /*UnaryOperator_List ['Math.floor', 'Math.ceil', 'Math.round', 'Math.trunc', 'Math.abs', 'Math.sqrt']*/;
+    :   '向下取整'|'向上取整'|'四舍五入'|'整数截断'|'绝对值'|'开方'|'变量类型'
+    /*UnaryOperator_List ['Math.floor', 'Math.ceil', 'Math.round', 'Math.trunc', 'Math.abs', 'Math.sqrt', 'typeof']*/;
 
 Weather_List
-    :   '无'|'雨'|'雪'|'雾'|'云'
-    /*Weather_List ['null','rain','snow','fog','cloud']*/;
+    :   '无'|'雨'|'雪'|'晴'|'雾'|'云'
+    /*Weather_List ['null','rain','snow','sun','fog','cloud']*/;
 
 B_0_List
     :   '不改变'|'不可通行'|'可以通行'
@@ -3402,25 +4054,37 @@ IgnoreChangeFloor_List
     /*IgnoreChangeFloor_List ['null','true','false']*/;
 
 Event_List
-    :   '普通事件'|'战后事件'|'道具后事件'|'开门后事件'
-    /*Event_List ['null','afterBattle','afterGetItem','afterOpenDoor']*/;
+    :   '普通事件'|'战前事件'|'战后事件'|'道具后事件'|'开门后事件'
+    /*Event_List ['null','beforeBattle','afterBattle','afterGetItem','afterOpenDoor']*/;
 
 Floor_Meta_List
-    :   '楼层中文名'|'状态栏名称'|'能否使用楼传'|'能否打开快捷商店'|'是否不可浏览地图'|'是否不可瞬间移动'|'默认地面ID'|'宝石血瓶效果'|'上楼点坐标'|'下楼点坐标'|'楼传落点坐标'|'背景音乐'|'画面色调'|'天气和强度'|'是否地下层'
-    /*Floor_Meta_List ['title','name','canFlyTo', 'canUseQuickShop', 'cannotViewMap', 'cannotMoveDirectly', 'defaultGround', 'ratio', 'upFloor', 'downFloor', 'fwlyPoint', 'bgm', 'color', 'weather', 'underGround']*/;
+    :   '楼层中文名'|'状态栏名称'|'能否楼传飞到'|'能否楼传飞出'|'能否打开快捷商店'|'是否不可浏览地图'|'是否不可瞬间移动'|'默认地面ID'|'宝石血瓶效果'|'上楼点坐标'|'下楼点坐标'|'楼传落点坐标'|'背景音乐'|'画面色调'|'天气和强度'|'是否地下层'
+    /*Floor_Meta_List ['title','name','canFlyTo', 'canFlyFrom', 'canUseQuickShop', 'cannotViewMap', 'cannotMoveDirectly', 'defaultGround', 'ratio', 'upFloor', 'downFloor', 'flyPoint', 'bgm', 'color', 'weather', 'underGround']*/;
 
 Global_Attribute_List
     :   '全局字体'|'横屏左侧状态栏背景'|'竖屏上方状态栏背景'|'竖屏下方道具栏背景'|'边框颜色'|'状态栏文字色'|'选中框颜色'|'楼层转换样式'|'装备列表'
     /*Global_Attribute_List ['font','statusLeftBackground','statusTopBackground', 'toolsBackground', 'borderColor', 'statusBarColor', 'selectColor', 'floorChangingStyle', 'equipName']*/;
 
 Global_Value_List
-    :   '血网伤害'|'中毒伤害'|'衰弱效果'|'红宝石效果'|'蓝宝石效果'|'绿宝石效果'|'红血瓶效果'|'蓝血瓶效果'|'黄血瓶效果'|'绿血瓶效果'|'破甲比例'|'反击比例'|'净化比例'|'仇恨增加值'|'动画时间'
-    /*Global_Value_List ['lavaDamage','poisonDamage','weakValue', 'redGem', 'blueGem', 'greenGem', 'redPotion', 'bluePotion', 'yellowPotion', 'greenPotion', 'breakArmor', 'counterAttack', 'purify', 'hatred', 'animateSpeed']*/;
+    :   '血网伤害'|'中毒伤害'|'衰弱效果'|'红宝石效果'|'蓝宝石效果'|'绿宝石效果'|'红血瓶效果'|'蓝血瓶效果'|'黄血瓶效果'|'绿血瓶效果'|'破甲比例'|'反击比例'|'净化比例'|'仇恨增加值'|'图块每帧时间'|'上下楼时间'
+    /*Global_Value_List ['lavaDamage','poisonDamage','weakValue', 'redGem', 'blueGem', 'greenGem', 'redPotion', 'bluePotion', 'yellowPotion', 'greenPotion', 'breakArmor', 'counterAttack', 'purify', 'hatred', 'animateSpeed', 'floorChangeTime']*/;
 
 
 Global_Flag_List
-    :   '显示当前楼层'|'显示勇士图标'|'显示当前等级'|'启用生命上限'|'显示生命值'|'显示魔力值'|'显示攻击力'|'显示防御力'|'显示护盾值'|'显示金币值'|'显示经验值'|'允许等级提升'|'升级扣除模式'|'显示钥匙数量'|'显示绿钥匙'|'显示破炸飞'|'显示毒衰咒'|'显示当前技能'|'楼梯边才能楼传'|'楼传平面塔模式'|'铁门不需要钥匙'|'开启加点'|'开启负伤'|'夹击不超伤害值'|'循环计算临界'|'允许轻按'|'允许走到将死领域'|'允许瞬间移动'|'阻激夹域后禁用快捷商店'|'虚化前景层'
-    /*Global_Flag_List ['s:enableFloor','s:enableName','s:enableLv', 's:enableHPMax', 's:enableHP', 's:enableMana', 's:enableAtk', 's:enableDef', 's:enableMDef', 's:enableMoney', 's:enableExp', 's:enableLevelUp', 's:levelUpLeftMode', 's:enableKeys', 's:enableGreenKey', 's:enablePZF', 's:enableDebuff', 's:enableSkill', 'flyNearStair', 'flyRecordPosition', 'steelDoorWithoutKey', 'enableAddPoint', 'enableNegativeDamage', 'betweenAttackMax', 'useLoop', 'enableGentleClick', 'canGoDeadZone', 'enableMoveDirectly', 'disableShopOnDamage', 'blurFg']*/;
+    :   '显示当前楼层'|'显示勇士图标'|'显示当前等级'|'启用生命上限'|'显示生命值'|'显示魔力值'|'显示攻击力'|'显示防御力'|'显示护盾值'|'显示金币值'|'显示经验值'|'允许等级提升'|'升级扣除模式'|'显示钥匙数量'|'显示绿钥匙'|'显示破炸飞'|'显示毒衰咒'|'显示当前技能'|'横屏底部工具栏'|'楼梯边才能楼传'|'楼传平面塔模式'|'开启加点'|'开启负伤'|'夹击不超伤害值'|'二分计算临界'|'允许轻按'|'允许走到将死领域'|'允许瞬间移动'|'阻激夹域后禁用快捷商店'|'虚化前景层'
+    /*Global_Flag_List ['s:enableFloor','s:enableName','s:enableLv', 's:enableHPMax', 's:enableHP', 's:enableMana', 's:enableAtk', 's:enableDef', 's:enableMDef', 's:enableMoney', 's:enableExp', 's:enableLevelUp', 's:levelUpLeftMode', 's:enableKeys', 's:enableGreenKey', 's:enablePZF', 's:enableDebuff', 's:enableSkill', 'extendToolbar', 'flyNearStair', 'flyRecordPosition', 'enableAddPoint', 'enableNegativeDamage', 'betweenAttackMax', 'useLoop', 'enableGentleClick', 'canGoDeadZone', 'enableMoveDirectly', 'disableShopOnDamage', 'blurFg']*/;
+
+NextXY_List
+    :   '横坐标'|'纵坐标'
+    /*NextXY_List ['nextX','nextY']*/;
+
+EquipValueType_List
+    :   '数值项'|'百分比项'
+    /*EquipValueType_List ['value','percentage']*/;
+
+Vibrate_List
+    :   '左右'|'上下'|'左上-右下'|'左下-右上'|'随机'
+    /*Vibrate_List ['horizontal','vertical','diagonal1','diagonal2','random']*/;
 
 Colour
     :   'sdeirughvuiyasdeb'+ //为了被识别为复杂词法规则
@@ -3455,8 +4119,8 @@ Direction_List
     /*Direction_List ['up','down','left','right']*/;
 
 DirectionEx_List
-    :   '不变'|'朝上'|'朝下'|'朝左'|'朝右'|'左转'|'右转'|'背对'
-    /*DirectionEx_List ['null','up','down','left','right',':left',':right',':back']*/;
+    :   '不变'|'朝上'|'朝下'|'朝左'|'朝右'|'左转'|'右转'|'背对'|'角色同向'|'角色反向'
+    /*DirectionEx_List ['null','up','down','left','right',':left',':right',':back',':hero',':backhero']*/;
 
 StepString
     :   (Direction_List Int?)+
@@ -3467,16 +4131,20 @@ IdString
     ;
 
 FixedId_List
-    :   '生命'|'生命上限'|'攻击'|'防御'|'护盾'|'黄钥匙'|'蓝钥匙'|'红钥匙'|'金币'|'经验'|'魔力'|'魔力上限'
-    /*FixedId_List ['status:hp','status:hpmax','status:atk','status:def','status:mdef','item:yellowKey','item:blueKey','item:redKey','status:money','status:exp','status:mana','status:manamax']*/;
+    :   '生命'|'生命上限'|'攻击'|'防御'|'护盾'|'黄钥匙'|'蓝钥匙'|'红钥匙'|'金币'|'经验'|'魔力'|'魔力上限'|'当前横坐标'|'当前纵坐标'|'当前朝向'|'攻击增益'|'防御增益'|'护盾增益'
+    /*FixedId_List ['status:hp','status:hpmax','status:atk','status:def','status:mdef','item:yellowKey','item:blueKey','item:redKey','status:money','status:exp','status:mana','status:manamax','status:x','status:y','status:direction','buff:atk','buff:def','buff:mdef']*/;
 
 Id_List
-    :   '变量' | '状态' | '物品' | '独立开关' | '临时变量' |'全局存储'
-    /*Id_List ['flag','status','item', 'switch', 'temp', 'global']*/;
+    :   '变量' | '状态' | '物品' | '增益' | '独立开关' | '临时变量' |'全局存储'
+    /*Id_List ['flag','status','item', 'buff', 'switch', 'temp', 'global']*/;
 
 EnemyId_List
-    :   '生命'|'攻击'|'防御'|'金币'|'经验'|'加点'|'属性'|'名称'|'映射名'|'属性值'|'退化扣攻'|'退化扣防'|'不可炸'|'九宫格领域'|'领域范围'|'连击数'|'吸血到自身'|'固伤值'
+    :   '生命'|'攻击'|'防御'|'金币'|'经验'|'加点'|'特殊属性'|'名称'|'映射名'|'属性值'|'退化扣攻'|'退化扣防'|'不可炸'|'九宫格领域'|'领域范围'|'连击数'|'吸血到自身'|'固伤值'
     /*EnemyId_List ['hp','atk','def','money','exp','point','special','name','displayInBook','value','atkValue','defValue','notBomb','zoneSquare','range','n','add','damage']*/;
+
+EnemyPoint_List
+    :   '生命'|'攻击'|'防御'|'金币'|'经验'|'加点'|'名称'
+    /*EnemyPoint_List ['hp','atk','def','money','exp','point','name']*/;
 
 Equip_List
     :   '生命'|'生命上限'|'攻击'|'防御'|'护盾'|'魔力'|'魔力上限'
@@ -3485,6 +4153,18 @@ Equip_List
 Key_List
     :   '黄钥匙'|'蓝钥匙'|'红钥匙'|'绿钥匙'|'铁门钥匙'
     /*Key_List ['yellowKey','blueKey','redKey','greenKey','steelKey']*/;
+
+Move_List
+    :   '上'|'下'|'左'|'右'|'前'|'后'|'左上'|'左下'|'右上'|'右下'|'设置速度'
+    /*Move_List ['up','down','left','right','forward','backward','leftup','leftdown','rightup','rightdown','speed']*/;
+
+MoveMode_List
+    :   '匀速移动'|'缓入快出'|'快入缓出'|'缓入缓出'|'随机'
+    /*MoveMode_List ['', 'easeIn', 'easeOut', 'easeInOut', 'random']*/;
+
+NameMap_List
+    :   '确定'|'取消'|'操作失败'|'光标移动'|'打开界面'|'读档'|'存档'|'获得道具'|'回血'|'宝石'|'炸弹'|'飞行器'|'开关门'|'上下楼'|'跳跃'|'破墙镐'|'破冰镐'|'阻激夹域'|'穿脱装备'|'商店'
+    /*NameMap_List ['确定','取消','操作失败','光标移动','打开界面','读档','存档','获得道具','回血','宝石','炸弹','飞行器','开关门','上下楼','跳跃','破墙镐','破冰镐','阻激夹域','穿脱装备','商店']*/;
 
 //转blockly后不保留需要加"
 EvalString
@@ -3537,13 +4217,14 @@ this.evisitor.statementColor=70;
 this.evisitor.entryColor=250;
 
 this.evisitor.idstring_eColor=310;
-this.evisitor.subColor=190;
-this.evisitor.printColor=70;
+this.evisitor.subColor=250;
 this.evisitor.dataColor=130;
 this.evisitor.eventColor=220;
 this.evisitor.soundColor=20;
 this.evisitor.commentColor=285;
 this.evisitor.mapColor=175;
+this.evisitor.uiColor=359;
+this.evisitor.imageColor=45;
 */
 
 /* Function_1

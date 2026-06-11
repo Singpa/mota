@@ -47,11 +47,12 @@ def get_mimetype(path):
 
 def get_file(path):
 	if not os.path.isfile(path):
+		if path.startswith('_saves/'):
+			return ''
 		abort(404)
 		return None
 	if not is_sub(path):
 		abort(403)
-		return None
 	with open(path, 'rb') as f:
 		content = f.read() # str in py2 and bytes in py3
 	return content 
@@ -59,6 +60,39 @@ def get_file(path):
 @app.route('/', methods=['GET'])
 def root():
 	return static_file('index.html')
+
+@app.route('/__all_floors__.js', methods=['GET'])
+def all_floors():
+	ids = request.args.get('id', '').split(',')
+	if len(ids) == 0:
+		abort(404)
+		return None
+	content = []
+	for id in ids:
+		v = get_file('project/floors/%s.js' % id)
+		if isPy3: v = str(v, encoding = 'utf-8')
+		content.append(v)
+	return Response('\n'.join(content), mimetype = 'text/javascript')
+
+@app.route('/__all_animates__', methods=['GET'])
+def all_animates():
+	ids = request.args.get('id', '').split(',')
+	if len(ids) == 0:
+		abort(404)
+		return None
+	content = []
+	for id in ids:
+		animate = 'project/animates/%s.animate' % id
+		if os.path.exists(animate):
+			v = get_file(animate)
+			if isPy3: v = str(v, encoding = 'utf-8')
+			content.append(v)
+		else: content.append('')
+	return '@@@~~~###~~~@@@'.join(content)
+
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+	return ''
 
 @app.route('/<path:path>', methods=['GET'])
 def static_file(path):
@@ -183,6 +217,10 @@ def deleteFile():
 	elif os.path.isdir(name):
 		shutil.rmtree(name)
 	return 'Success'
+
+@app.route('/games/upload.php', methods=['POST'])
+def upload():
+	return ''
 
 def port_used(port):
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

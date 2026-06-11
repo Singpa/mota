@@ -38,6 +38,13 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_docs": "使用图片",
 					"_data": "在此存放所有可能使用的图片（tilesets除外） \n图片可以被作为背景图（的一部分），也可以直接用自定义事件进行显示。 \n 图片名不能使用中文，不能带空格或特殊字符；可以直接改名拼音就好 \n 建议对于较大的图片，在网上使用在线的“图片压缩工具(http://compresspng.com/zh/)”来进行压缩，以节省流量 \n 依次向后添加",
 				},
+				"splitImages": {
+					"_leaf": true,
+					"_type": "event",
+					"_event": "splitImages",
+					"_docs": "图片切分",
+					"_data": "可以在这里对使用到的图片进行按照一定宽高切分，生成若干新的小图供使用"
+				},
 				"tilesets": {
 					"_leaf": true,
 					"_type": "material",
@@ -82,7 +89,7 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_range": "editor.mode.checkUnique(thiseval)",
 					"_directory": "./project/bgms/",
 					"_transform": (function (one) {
-						if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav'))
+						if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav') || one.endsWith('.m4a') || one.endsWith('.flac'))
 							return one;
 						return null;
 					}).toString(),
@@ -95,7 +102,7 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_range": "editor.mode.checkUnique(thiseval)",
 					"_directory": "./project/sounds/",
 					"_transform": (function (one) {
-						if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav'))
+						if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav') || one.endsWith('.m4a') || one.endsWith('.flac'))
 							return one;
 						return null;
 					}).toString(),
@@ -116,9 +123,10 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 				},
 				"nameMap": {
 					"_leaf": true,
-					"_type": "textarea",
-					"_docs": "文件映射",
-					"_data": "文件名映射，目前仅对images, animates, bgms, sounds有效。\n例如定义 {\"精灵石.mp3\":\"jinglingshi.mp3\"} 就可以使用\ncore.playBgm(\"精灵石.mp3\") 或对应的事件来播放该bgm。"
+					"_type": "event",
+					"_event": "nameMap",
+					"_docs": "文件别名",
+					"_data": "文件别名设置，目前仅对images, animates, bgms, sounds有效。"
 				},
 				"levelChoose": {
 					"_leaf": true,
@@ -130,16 +138,23 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 				"equipName": {
 					"_leaf": true,
 					"_type": "textarea",
-					"_range": "(thiseval instanceof Array && thiseval.length<=6)||thiseval==null",
+					"_range": "(thiseval instanceof Array)||thiseval==null",
 					"_docs": "装备孔",
-					"_data": "装备位名称，为不超过6个的数组，此项的顺序与equiptype数值关联；例如可写[\"武器\",\"防具\",\"首饰\"]等等。"
+					"_data": "装备位名称，为一个数组，此项的顺序与equiptype数值关联；例如可写[\"武器\",\"防具\",\"首饰\"]等等。"
 				},
 				"startBgm": {
 					"_leaf": true,
-					"_type": "select",
-					"_select": {
-						"values": [null].concat(Object.keys(editor.core.material.bgms))
-					},
+					"_type": "material",
+					"_directory": "./project/bgms/",
+					"_transform": (function (one) {
+						if (one.endsWith('.mp3') || one.endsWith('.ogg') || one.endsWith('.wav') || one.endsWith('.m4a') || one.endsWith('.flac'))
+							return one;
+						return null;
+					}).toString(),
+					"_onconfirm": (function (previous, current) {
+						if (current.length == 0) return null;
+						return current[0];
+					}).toString(),
 					"_docs": "标题音乐",
 					"_data": "在标题界面应该播放的bgm内容"
 				},
@@ -267,11 +282,13 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 						"equipment": {
 							"_leaf": true,
 							"_type": "textarea",
+							"_hide": true,
 							"_range": "thiseval instanceof Array",
 							"_data": "初始装备"
 						},
 						"items": {
 							"_type": "object",
+							"_hide": true,
 							"_data": {
 								"constants": {
 									"_leaf": true,
@@ -315,12 +332,12 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 								"x": {
 									"_leaf": true,
 									"_type": "textarea",
-									"_data": "初始x坐标"
+									"_data": "横坐标"
 								},
 								"y": {
 									"_leaf": true,
 									"_type": "textarea",
-									"_data": "初始y坐标"
+									"_data": "纵坐标"
 								}
 							}
 						},
@@ -333,11 +350,13 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 						"followers": {
 							"_leaf": true,
 							"_type": "disable",
+							"_hide": true,
 							"_data": "跟随者"
 						},
 						"steps": {
 							"_leaf": true,
 							"_type": "disable",
+							"_hide": true,
 							"_data": "行走步数"
 						}
 					}
@@ -460,14 +479,20 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_docs": "全局帧动画时间",
 					"_data": "全局帧动画时间，即怪物振动频率，一般300比较合适"
 				},
+				"moveSpeed": {
+					"_leaf": true,
+					"_type": "textarea",
+					"_docs": "勇士移速",
+					"_data": "勇士每一格的移速，默认是100；此项可被用户修改覆盖"
+				},
 				"statusCanvasRowsOnMobile": {
 					"_leaf": true,
 					"_type": "select",
 					"_select": {
-						"values": [1, 2, 3, 4]
+						"values": [1, 2, 3, 4, 5]
 					},
 					"_docs": "竖状态栏自绘行数",
-					"_data": "竖屏模式下，顶端状态栏canvas化后的行数。\n此项将决定竖屏的状态栏高度，如果设置则不小于1且不大于4。\n仅在statusCanvas开启时才有效"
+					"_data": "竖屏模式下，顶端状态栏canvas化后的行数。\n此项将决定竖屏的状态栏高度，如果设置则不小于1且不大于5。\n仅在statusCanvas开启时才有效"
 				},
 				"floorChangeTime": {
 					"_leaf": true,
@@ -527,6 +552,24 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					},
 					"_data": "状态栏显示项"
 				},
+				"autoScale": {
+					"_leaf": true,
+					"_type": "checkbox",
+					"_docs": "自动缩放",
+					"_data": "是否自动缩放至合适值"
+				},
+				"extendToolbar": {
+					"_leaf": true,
+					"_type": "checkbox",
+					"_docs": "画面下方道具栏",
+					"_data": "开启后道具栏会被挪动至游戏画面的下方"
+				},
+				"hideLeftStatusBar": {
+					"_leaf": true,
+					"_type": "checkbox",
+					"_docs": "隐藏左侧状态栏",
+					"_data": "是否隐藏左侧状态栏，开启后强制开启画面下方道具栏"
+				},
 				"flyNearStair": {
 					"_leaf": true,
 					"_type": "checkbox",
@@ -538,12 +581,6 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_type": "checkbox",
 					"_docs": "楼传开平面模式",
 					"_data": "传送器平面塔模式；此模式下楼层传送器将飞到上次离开该楼层的位置。"
-				},
-				"steelDoorWithoutKey": {
-					"_leaf": true,
-					"_type": "checkbox",
-					"_docs": "铁门不消耗钥匙",
-					"_data": "铁门是否不需要钥匙开启。如果此项为true，则无需钥匙也可以开铁门。"
 				},
 				"itemFirstText": {
 					"_leaf": true,
@@ -560,13 +597,13 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 				"enableAddPoint": {
 					"_leaf": true,
 					"_type": "checkbox",
-					"_docs": "加点",
+					"_docs": "开启加点",
 					"_data": "是否支持加点"
 				},
 				"enableNegativeDamage": {
 					"_leaf": true,
 					"_type": "checkbox",
-					"_docs": "负伤",
+					"_docs": "开启负伤",
 					"_data": "是否支持负伤害（回血）"
 				},
 				"betweenAttackMax": {
@@ -593,23 +630,11 @@ var data_comment_c456ea59_6018_45ef_8bcc_211a24c627dc = {
 					"_docs": "开启自绘状态栏",
 					"_data": "是否状态栏canvas化，即手动自定义绘制状态栏。\n如果此项开启，则可在脚本编辑的drawStatusBar中自定义绘制菜单栏。"
 				},
-				"displayEnemyDamage": {
+				"enableEnemyPoint": {
 					"_leaf": true,
 					"_type": "checkbox",
-					"_docs": "怪物显伤",
-					"_data": "是否地图怪物显伤；用户可以手动在菜单栏中开关"
-				},
-				"displayCritical": {
-					"_leaf": true,
-					"_type": "checkbox",
-					"_docs": "临界显伤",
-					"_data": "是否地图显示临界；用户可以手动在菜单栏中开关"
-				},
-				"displayExtraDamage": {
-					"_leaf": true,
-					"_type": "checkbox",
-					"_docs": "高级显伤",
-					"_data": "是否地图高级显伤（领域、夹击等）；用户可以手动在菜单栏中开关"
+					"_docs": "定点怪显",
+					"_data": "是否开启怪物的定点显示功能，即属性不同的怪物会在怪物手册单列；用户可以手动在菜单栏中开关"
 				},
 				"enableGentleClick": {
 					"_leaf": true,

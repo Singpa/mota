@@ -77,11 +77,13 @@ editor_datapanel_wrapper = function (editor) {
     }
     importMap.onclick= function () {
         var sy=editor.map.length,sx=editor.map[0].length;
-        var mapArray;
-        try {
-            mapArray = JSON.parse('[' + pout.value + ']');
-            if (mapArray.length != sy || mapArray[0].length != sx) throw '';
-        } catch (e) {
+        var mapArray = null;
+        var value = pout.value.trim();
+        // 去除可能末尾的 ','
+        if (value.endsWith(',')) value = value.substring(0, value.length - 1);
+        try { mapArray = JSON.parse(value); } catch (e) {console.log(e)}
+        try { mapArray = mapArray || JSON.parse('[' + value + ']'); } catch (e) {console.log(e)}
+        if (mapArray == null || mapArray.length != sy || mapArray[0].length != sx) {
             printe('格式错误！请使用正确格式(请使用地图生成器进行生成，且需要和本地图宽高完全一致)');
             return;
         }
@@ -138,8 +140,12 @@ editor_datapanel_wrapper = function (editor) {
         var newFileName = document.getElementById('newFileName');
         newMap.onclick = function () {
             if (!newFileName.value) return;
-            if (core.floorIds.indexOf(newFileName.value) >= 0) {
-                printe("该楼层已存在！");
+            var findFunc = function (id) {
+                var re = new RegExp(newFileName.value, 'i');
+                return re.test(id);
+            }
+            if (core.floorIds.find(findFunc) != null) {
+                printe("同名楼层已存在！(不区分大小写)");
                 return;
             }
             if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newFileName.value)) {
@@ -148,8 +154,8 @@ editor_datapanel_wrapper = function (editor) {
             }
             var width = parseInt(document.getElementById('newMapWidth').value);
             var height = parseInt(document.getElementById('newMapHeight').value);
-            if (!core.isset(width) || !core.isset(height) || width < core.__SIZE__ || height < core.__SIZE__ || width > 128 || height > 128) {
-                printe("新建地图的宽高都不得小于" + core.__SIZE__ + "，且都不得大于128");
+            if (!core.isset(width) || !core.isset(height) || width > 128 || height > 128) {
+                printe("新建地图的宽高都不得大于128");
                 return;
             }
 
@@ -174,6 +180,12 @@ editor_datapanel_wrapper = function (editor) {
 
 
     editor.uifunctions.createNewMaps_func = function () {
+
+        document.getElementById('newMapWidth').value = core.__SIZE__;
+        document.getElementById('newMapHeight').value = core.__SIZE__;
+        document.getElementById('newMapsWidth').value = core.__SIZE__;
+        document.getElementById('newMapsHeight').value = core.__SIZE__;
+
         var newMaps = document.getElementById('newMaps');
         var newFloors = document.getElementById('newFloors');
         newMaps.onclick = function () {
@@ -187,7 +199,7 @@ editor_datapanel_wrapper = function (editor) {
             if (!floorIds) return;
             var from = parseInt(document.getElementById('newMapsFrom').value),
                 to = parseInt(document.getElementById('newMapsTo').value);
-            if (!core.isset(from) || !core.isset(to) || from > to || from < 0 || to < 0) {
+            if (!core.isset(from) || !core.isset(to) || from > to) {
                 printe("请输入有效的起始和终止楼层");
                 return;
             }
@@ -200,8 +212,12 @@ editor_datapanel_wrapper = function (editor) {
                 var floorId = floorIds.replace(/\${(.*?)}/g, function (word, value) {
                     return eval(value);
                 });
-                if (core.floorIds.indexOf(floorId) >= 0) {
-                    printe("要创建的楼层 " + floorId + " 已存在！");
+                var findFunc = function (id) {
+                    var re = new RegExp(floorId, 'i');
+                    return re.test(id);
+                }
+                if (core.floorIds.find(findFunc) != null) {
+                    printe("同名楼层已存在！(不区分大小写)");
                     return;
                 }
                 if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(floorId)) {
@@ -217,8 +233,8 @@ editor_datapanel_wrapper = function (editor) {
 
             var width = parseInt(document.getElementById('newMapsWidth').value);
             var height = parseInt(document.getElementById('newMapsHeight').value);
-            if (!core.isset(width) || !core.isset(height) || width < core.__SIZE__ || height < core.__SIZE__ || width > 128 || height > 128) {
-                printe("新建地图的宽高都不得小于" + core.__SIZE__ + "，且都不得大于128");
+            if (!core.isset(width) || !core.isset(height) || width > 128 || height > 128) {
+                printe("新建地图的宽高都不得大于128");
                 return;
             }
             editor_mode.onmode('');
@@ -291,6 +307,13 @@ editor_datapanel_wrapper = function (editor) {
                     printe('不合法的id，请使用字母、数字或下划线，且不能以数字开头');
                     return;
                 }
+                if (id == 'hero' || id == 'this' || id == 'none' || id == 'airwall') {
+                    printe('不得使用保留关键字作为id！');
+                    return;
+                }
+                if (core.statusBar.icons[id] != null) {
+                    alert('警告！此ID在状态栏图标中被注册；仍然允许使用，但是\\i[]等绘制可能出现冲突。');
+                }
                 editor.file.changeIdAndIdnum(id, idnum, editor_mode.info, function (err) {
                     if (err) {
                         printe(err);
@@ -311,6 +334,20 @@ editor_datapanel_wrapper = function (editor) {
                 printe('该列所有剩余项全部自动注册成功,请F5刷新编辑器');
             })
         }
+        newIdIdnum.children[5].onclick = function () {
+            if (!confirm("警告！你确定要删除此素材吗？此过程不可逆！")) return;
+            editor.file.removeMaterial(editor_mode.info, function (err) {
+                if (err) {
+                    printe(err);
+                    throw err;
+                }
+                alert('删除此素材成功！');
+                window.location.reload();
+            });
+        }
+        newIdIdnum.children[6].onclick = function () {
+            editor.uifunctions.appendMaterialByInfo(editor_mode.info);
+        }
     }
 
     editor.uifunctions.changeId_func = function () {
@@ -326,6 +363,17 @@ editor_datapanel_wrapper = function (editor) {
                     printe('不得使用保留关键字作为id！');
                     return;
                 }
+                if (editor_mode.info.images == 'autotile') {
+                    printe('自动元件不可修改id！');
+                    return;
+                }
+                if (editor_mode.info.idnum >= 10000) {
+                    printe('额外素材不可修改id！');
+                    return;
+                }
+                if (core.statusBar.icons[id] != null) {
+                    alert('警告！此ID在状态栏图标中被注册；仍然允许使用，但是\\i[]等绘制可能出现冲突。');
+                }
                 editor.file.changeIdAndIdnum(id, null, editor_mode.info, function (err) {
                     if (err) {
                         printe(err);
@@ -336,6 +384,24 @@ editor_datapanel_wrapper = function (editor) {
             } else {
                 printe('请输入要修改到的ID');
             }
+        }
+        changeId.children[2].onclick = function () {
+            if (editor_mode.info.isTile) {
+                printe("额外素材不可删除！");
+                return;
+            }
+            if (!confirm("警告！你确定要删除此素材吗？此过程不可逆！\n请务必首先进行备份操作，并保证此素材没有在地图的任何位置使用，否则可能会出现不可知的后果！")) return;
+            editor.file.removeMaterial(editor_mode.info, function (err) {
+                if (err) {
+                    printe(err);
+                    return;
+                }
+                alert('删除此素材成功！');
+                window.location.reload();
+            });
+        }
+        changeId.children[3].onclick = function () {
+            editor.uifunctions.appendMaterialByInfo(editor_mode.info);
         }
     }
 
@@ -518,8 +584,8 @@ editor_datapanel_wrapper = function (editor) {
             var height = parseInt(children[1].value);
             var x = parseInt(children[2].value);
             var y = parseInt(children[3].value);
-            if (!(width >= core.__SIZE__ && height >= core.__SIZE__ && x >=0 && y >=0)) {
-                printe("参数错误！宽高不得小于"+core.__SIZE__+"，偏移量不得小于0");
+            if (!(width <= 128 && height <= 128 && x >= 0 && y >= 0)) {
+                printe("参数错误！宽高不得大于128，偏移量不得小于0");
                 return;
             }
             var currentFloorData = editor.currentFloorData;
@@ -552,7 +618,7 @@ editor_datapanel_wrapper = function (editor) {
             });
 
             // Step 3:更新所有坐标
-            ["events", "afterBattle", "afterGetItem", "afterOpenDoor", "changeFloor", "autoEvent", "cannotMove"].forEach(function (name) {
+            ["events", "beforeBattle", "afterBattle", "afterGetItem", "afterOpenDoor", "changeFloor", "autoEvent", "cannotMove"].forEach(function (name) {
                 newFloorData[name] = {};
                 if (!currentFloorData[name]) return;
                 for (var loc in currentFloorData[name]) {
@@ -767,6 +833,10 @@ editor_datapanel_wrapper = function (editor) {
         }
 
         var loadImage = function (content, callback) {
+            if (content instanceof Image || content.getContext != null) {
+                callback(content);
+                return;
+            }
             var image = new Image();
             try {
                 image.onload = function () {
@@ -993,28 +1063,43 @@ editor_datapanel_wrapper = function (editor) {
             var ysize = value.endsWith('48') ? 48 : 32;
             var sw = editor.dom.appendSourceCtx.canvas.width, sh = editor.dom.appendSourceCtx.canvas.height;
             if (value == 'items') {
-                if ((sw != 96 && sw != 128) || sh != 4 * ysize) {
-                    return printe("只有 3*4 或 4*4 的道具才可以快速导入！");
+                if (sw % 32 || sh % 32) {
+                    return printe("只有长宽都是32的倍数的道具图才可以快速导入！");
                 }
             } else {
-                if (sw != 128 || sh != 4 * ysize) {
-                    return printe("只有 4*4 的素材图片才可以快速导入！");
+                if ((sw != 128 && sw != 96) || sh != 4 * ysize) {
+                    return printe("只有 3*4 或 4*4 的素材图片才可以快速导入！");
                 }
             }
             sw = sw / 32;
+            sh = sh / ysize;
 
             var dt = editor.dom.appendSpriteCtx.getImageData(0, 0, editor.dom.appendSprite.width, editor.dom.appendSprite.height);
-            var appendSize = value == 'items' ? (4 * sw - 1) : 3;
+            var appendSize = value == 'items' ? (sw * sh - 1) : 3;
             editor.dom.appendSprite.style.height = (editor.dom.appendSprite.height = (editor.dom.appendSprite.height + appendSize * ysize)) + "px";
             editor.dom.appendSpriteCtx.putImageData(dt, 0, 0);
             if (editor.dom.appendSprite.width == 32) { // 1帧：道具
-                for (var i = 0; i < 4 * sw; ++i) {
-                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 32 * (i % sw), 32 * parseInt(i / sw), 32, 32, 0, editor.dom.appendSprite.height - (sw * 4 - i) * ysize, 32, 32);
+                for (var i = 0; i < sw * sh; ++i) {
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 32 * (i % sw), 32 * parseInt(i / sw), 32, 32, 0, editor.dom.appendSprite.height - (sw * sh - i) * ysize, 32, 32);
                 }
             } else if (editor.dom.appendSprite.width == 64) { // 两帧
-                editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 32, 0, 64, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 64, 4 * ysize);
+                if (sw == 3) {
+                    // 3*4的规格使用13帧
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 0, 0, 32, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 32, 4 * ysize);
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 64, 0, 32, 4 * ysize, 32, editor.dom.appendSprite.height - 4 * ysize, 32, 4 * ysize);
+                } else {
+                    // 4*4的规格使用23帧
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 32, 0, 64, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 64, 4 * ysize);
+                }             
             } else { // 四帧
-                editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 0, 0, 128, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 128, 4 * ysize);
+                if (sw == 3) {
+                    // 3*4的规格使用2123帧
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 32, 0, 32, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 32, 4 * ysize);
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 0, 0, 96, 4 * ysize, 32, editor.dom.appendSprite.height - 4 * ysize, 96, 4 * ysize);
+                } else {
+                    // 4*4的规格使用1234帧
+                    editor.dom.appendSpriteCtx.drawImage(editor.dom.appendSourceCtx.canvas, 0, 0, 128, 4 * ysize, 0, editor.dom.appendSprite.height - 4 * ysize, 128, 4 * ysize);
+                }
             }
 
             dt = editor.dom.appendSpriteCtx.getImageData(0, 0, editor.dom.appendSprite.width, editor.dom.appendSprite.height);
@@ -1065,6 +1150,46 @@ editor_datapanel_wrapper = function (editor) {
             }
             reader.readAsDataURL(file);
         }
+
+        editor.uifunctions.appendMaterialByInfo = function (info) {
+            if (info.isTile) {
+                printe('额外素材不支持此功能！');
+                return;
+            }
+            var img = null;
+            var cls = info.images;
+            var height = cls == 'enemy48' || cls == 'npc48' ? 48 : 32;
+
+            if (cls == 'autotile') {
+                img = core.material.images.autotile[info.id];
+            } else {
+                var image = core.material.images[cls];
+                var width = image.width;
+                img = document.createElement('canvas');
+                img.width = width;
+                img.height = height;
+                img.getContext('2d').drawImage(image, 0, info.y * height, width, height, 0, 0, width, height);
+            }
+
+            editor.mode.change('appendpic');
+            editor.dom.selectAppend.value = cls;
+            editor.dom.selectAppend.onchange();
+
+            afterReadFile(img, function () {
+                changeColorInput.value = 0;
+                if (cls == 'autotile') return;
+
+                editor_mode.appendPic.index = 0;
+                for (var ii = 0; ii < editor_mode.appendPic.num; ++ii) {
+                    editor_mode.appendPic.selectPos[ii] = {x: ii, y: 0, ysize: height};
+                    editor.dom.appendPicSelection.children[ii].style = [
+                        'left:', ii * 32, 'px;',
+                        'top:', 0, 'px;',
+                        'height:', height - 6, 'px;'
+                    ].join('');
+                }
+            });
+        } 
     }
 
     ///////////////////////////////////////////////////////////////////////
