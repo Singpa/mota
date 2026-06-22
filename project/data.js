@@ -78,7 +78,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		},
 		"levelChoose": [
 			{
-				"title": "简单",
+				"title": "小小V难度",
 				"name": "Easy",
 				"hard": 1,
 				"color": [
@@ -95,7 +95,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 				]
 			},
 			{
-				"title": "普通",
+				"title": "普通的魔法少女",
 				"name": "Normal",
 				"hard": 2,
 				"color": [
@@ -107,7 +107,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 				"action": []
 			},
 			{
-				"title": "困难",
+				"title": "拯救世界！",
 				"name": "Hard",
 				"hard": 3,
 				"color": [
@@ -125,34 +125,19 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		],
 		"startBgm": null,
 		"styles": {
-			"startBackground": "project/images/bg.jpg",
-			"startVerticalBackground": "project/images/bg.jpg",
-			"startLogoStyle": "color: black",
-			"startButtonsStyle": "background-color: #32369F; opacity: 0.85; color: #FFFFFF; border: #FFFFFF 2px solid; caret-color: #FFD700;",
-			"statusLeftBackground": "url(project/materials/ground.png) repeat",
-			"statusTopBackground": "url(project/materials/ground.png) repeat",
-			"toolsBackground": "black",
-			"borderColor": [
-				0,
-				0,
-				0,
-				1
-			],
-			"statusBarColor": [
-				255,
-				255,
-				255,
-				1
-			],
-			"selectColor": [
-				255,
-				215,
-				0,
-				1
-			],
-			"floorChangingStyle": "background-color: black; color: white",
-			"font": "Verdana"
-		},
+            "startBackground": "project/images/bg.jpg",
+            "startVerticalBackground": "project/images/bg.jpg",
+            "startLogoStyle": "color: #D87B88; font-weight: bold; text-shadow: 2px 2px 0px #FFFFFF;",
+            "startButtonsStyle": "background-color: #FDF3F4; opacity: 0.95; color: #8C4B56; border: #D87B88 2px solid; border-radius: 12px;",
+            "statusLeftBackground": "#FDF3F4",
+            "statusTopBackground": "#FDF3F4",
+            "toolsBackground": "#FDF3F4",
+            "borderColor": [216, 123, 136, 1],
+            "statusBarColor": [140, 75, 86, 1],
+            "selectColor": [255, 182, 193, 1],
+            "floorChangingStyle": "background-color: #FDF3F4; color: #D87B88",
+            "font": "Verdana" // 记得在 project/fonts/ 里放入你的可爱字体，并把这里改成对应的字体名
+        },
 		"splitImages": [
 			{
 				"name": "dragon.png",
@@ -163,7 +148,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		]
 	},
 	"firstData": {
-		"title": "魔塔样板",
+		"title": "",
 		"name": "template",
 		"version": "Ver 2.10.3",
 		"floorId": "sample0",

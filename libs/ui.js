@@ -138,7 +138,7 @@ ui.prototype.fillBoldText = function (name, text, x, y, style, strokeStyle, font
     if (font) ctx.font = font;
     if (!style) style = ctx.fillStyle;
     style = core.arrayToRGBA(style);
-    if (!strokeStyle) strokeStyle = '#000000';
+    if (!strokeStyle) strokeStyle = '#FFFFFF';
     strokeStyle = core.arrayToRGBA(strokeStyle);
     if (maxWidth != null) {
         this.setFontForMaxWidth(ctx, text, maxWidth);
@@ -727,10 +727,10 @@ ui.prototype.drawTip = function (text, id, frame) {
 
 ui.prototype._drawTip_drawOne = function (tip) {
     core.setAlpha('data', tip.opacity);
-    core.fillRect('data', 5, 5, tip.width, 42, '#000000');
+    core.fillRect('data', 5, 5, tip.width, 42, '#FFFFFF');
     if (tip.image)
         core.drawImage('data', tip.image, (tip.posX + tip.frame) * 32, tip.posY * tip.height, 32, 32, 10, 10, 32, 32);
-    core.fillText('data', tip.text, tip.textX, 33, '#FFFFFF');
+    core.fillText('data', tip.text, tip.textX, 33, '#5C3A21');
     core.setAlpha('data', 1);
 }
 
@@ -2148,7 +2148,7 @@ ui.prototype._drawBook_drawBackground = function () {
     core.fillRect('ui', 0, 0, core._PX_, core._PY_);
 
     core.setAlpha('ui', 0.6);
-    core.setFillStyle('ui', '#000000');
+    core.setFillStyle('ui', '#FFFFFF');
     core.fillRect('ui', 0, 0, core._PX_, core._PY_);
 }
 
@@ -2364,7 +2364,7 @@ ui.prototype._drawBookDetail = function (index) {
         top = (core._PY_ - height) / 2, bottom = top + height;
 
     core.setAlpha('data', 0.9);
-    core.fillRect('data', left, top, width, height, '#000000');
+    core.fillRect('data', left, top, width, height, '#FFFFFF');
     core.setAlpha('data', 1);
     core.strokeRect('data', left - 1, top - 1, width + 1, height + 1,
         core.arrayToRGBA(core.status.globalAttribute.borderColor), 2);
@@ -2521,10 +2521,10 @@ ui.prototype.drawFly = function (page) {
     var title = core.status.maps[floorId].title;
     core.clearMap('ui');
     core.setAlpha('ui', 0.85);
-    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000');
+    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF');
     core.setAlpha('ui', 1);
     core.setTextAlign('ui', 'center');
-    core.fillText('ui', '楼层跳跃', core._PX_ / 2, 48, '#FFFFFF', this._buildFont(28, true));
+    core.fillText('ui', '楼层跳跃', core._PX_ / 2, 48, '#5C3A21', this._buildFont(28, true));
     core.fillText('ui', '返回游戏', core._PX_ / 2, core._PY_ - 13, null, this._buildFont(15, true))
     core.setTextAlign('ui', 'right');
     core.fillText('ui', '浏览地图时也', core._PX_ - 10, core._PY_ - 23, '#aaaaaa', this._buildFont(10, false));
@@ -2538,7 +2538,7 @@ ui.prototype.drawFly = function (page) {
     var lines = core.splitLines('ui', title, lastWidth, this._buildFont(19, true));
     var start_y = middle - (lines.length - 1) * 11;
     for (var i in lines) {
-        core.fillText('ui', lines[i], core._PX_ - lastWidth * 0.5, start_y, '#FFFFFF');
+        core.fillText('ui', lines[i], core._PX_ - lastWidth * 0.5, start_y, '#5C3A21');
         start_y += 22;
     }
     if (core.actions._getNextFlyFloor(1) != page) {
@@ -2552,7 +2552,7 @@ ui.prototype.drawFly = function (page) {
         core.fillText('ui', '▼', core._PX_ - lastWidth * 0.5, middle + 96 + 7);
     }
     var size = 0.75;
-    core.strokeRect('ui', 16, 64, size * core._PX_, size * core._PY_, '#FFFFFF', 2);
+    core.strokeRect('ui', 16, 64, size * core._PX_, size * core._PY_, '#5C3A21', 2);
     core.drawThumbnail(floorId, null, { ctx: 'ui', x: 16, y: 64, size: size, damage: true, all: true });
 }
 
@@ -2564,7 +2564,7 @@ ui.prototype._drawCenterFly = function () {
     if (core.canUseItem('centerFly')) fillstyle = 'rgba(0,255,0,0.5)';
     var toX = core.bigmap.width - 1 - core.getHeroLoc('x'), toY = core.bigmap.height - 1 - core.getHeroLoc('y');
     this.clearUI();
-    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000');
+    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF');
     core.drawThumbnail(null, null, { heroLoc: core.status.hero.loc, heroIcon: core.status.hero.image, ctx: 'ui', centerX: toX, centerY: toY });
     var offsetX = core.clamp(toX - core._HALF_WIDTH_, 0, core.bigmap.width - core._WIDTH_),
         offsetY = core.clamp(toY - core._HALF_HEIGHT_, 0, core.bigmap.height - core._HEIGHT_);
@@ -2584,7 +2584,7 @@ ui.prototype._drawViewMaps = function (index, x, y) {
     core.animateFrame.tip = null;
     core.status.checkBlock.cache = {};
     var data = this._drawViewMaps_buildData(index, x, y);
-    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000');
+    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF');
     core.drawThumbnail(data.floorId, null, { damage: data.damage, ctx: 'ui', centerX: data.x, centerY: data.y, all: data.all });
     core.clearMap('data');
     core.setTextAlign('data', 'left');
@@ -2671,7 +2671,7 @@ ui.prototype._drawToolbox = function (index) {
     // 绘制线
     core.setAlpha('ui', 1);
     core.setStrokeStyle('ui', '#DDDDDD');
-    core.canvas.ui.lineWidth = 2;
+    core.canvas.ui.lineWidth = 0;
     core.canvas.ui.strokeWidth = 2;
     core.setTextAlign('ui', 'right');
     var line1 = core._PY_ - 306;
@@ -2742,7 +2742,7 @@ ui.prototype._drawToolbox_drawBackground = function () {
     // 绘制
     core.clearMap('ui');
     core.setAlpha('ui', 0.85);
-    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000');
+    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF');
 }
 
 ui.prototype._drawToolbox_drawLine = function (yoffset, text) {
@@ -2772,7 +2772,7 @@ ui.prototype._drawToolbox_drawDescription = function (info, max_height) {
 
     var height = null;
     for (var fontSize = 17; fontSize >= 9; fontSize -= 2) {
-        var config = { left: 10, top: 46, fontSize: fontSize, maxWidth: core._PX_ - 15, bold: false, color: "white" };
+        var config = { left: 10, top: 46, fontSize: fontSize, maxWidth: core._PX_ - 15, bold: false, color: "#5C3A21" };
         height = 42 + core.getTextContentHeight(text, config);
         if (height < max_height || fontSize == 9) {
             core.drawTextContent('ui', text, config);
@@ -2794,7 +2794,7 @@ ui.prototype._drawToolbox_drawContent = function (info, line, items, page, drawC
         var icon = core.material.icons.items[item], image = core.material.images.items;
         core.drawImage('ui', image, 0, 32 * icon, 32, 32, 64 * (i % n) + 21, yoffset, 32, 32);
         if (drawCount)
-            core.fillText('ui', core.itemCount(item), 64 * (i % n) + 56, yoffset + 33, '#FFFFFF', this._buildFont(14, true));
+            core.fillText('ui', core.itemCount(item), 64 * (i % n) + 56, yoffset + 33, '#5C3A21', this._buildFont(14, true));
         if (info.selectId == item)
             core.strokeRoundRect('ui', 64 * (i % n) + 17, yoffset - 4, 40, 40, 6, core.status.globalAttribute.selectColor);
     }
@@ -2881,7 +2881,7 @@ ui.prototype._drawEquipbox_description = function (info, max_height) {
 
     var height = null;
     for (var fontSize = 17; fontSize >= 9; fontSize -= 2) {
-        var config = { left: 10, top: 46, fontSize: fontSize, maxWidth: core._PX_ - 15, bold: false, color: "white" };
+        var config = { left: 10, top: 46, fontSize: fontSize, maxWidth: core._PX_ - 15, bold: false, color: "#5C3A21" };
         height = 42 + core.getTextContentHeight(text, config);
         if (height < max_height - 30 || fontSize == 9) {
             core.drawTextContent('ui', text, config);
@@ -2955,8 +2955,8 @@ ui.prototype._drawEquipbox_drawEquiped = function (info, line) {
             var icon = core.material.icons.items[equipId];
             core.drawImage('ui', core.material.images.items, 0, 32 * icon, 32, 32, offset_image, y, 32, 32);
         }
-        core.fillText('ui', info.allEquips[i] || "未知", offset_text, y + 27, '#FFFFFF', this._buildFont(16, true))
-        core.strokeRoundRect('ui', offset_image - 4, y - 4, 40, 40, 6, info.index == i ? core.status.globalAttribute.selectColor : "#FFFFFF");
+        core.fillText('ui', info.allEquips[i] || "未知", offset_text, y + 27, '#5C3A21', this._buildFont(16, true))
+        core.strokeRoundRect('ui', offset_image - 4, y - 4, 40, 40, 6, info.index == i ? core.status.globalAttribute.selectColor : "#5C3A21");
     }
 }
 
@@ -3020,7 +3020,7 @@ ui.prototype._drawSLPanel_draw = function (page, max_page) {
 ui.prototype._drawSLPanel_drawBackground = function () {
     core.clearMap('ui');
     core.setAlpha('ui', 0.85);
-    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000'); // 可改成背景图
+    core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF'); // 可改成背景图
     core.setAlpha('ui', 1);
 }
 
@@ -3048,8 +3048,8 @@ ui.prototype._drawSLPanel_drawRecord = function (title, data, x, y, size, cho, h
     if (!data || !data.floorId) highLight = false;
     if (data && data.__toReplay__) title = '[R]' + title;
     var w = size * core._PX_, h = size * core._PY_;
-    core.fillText('ui', title, x, y, highLight ? globalAttribute.selectColor : '#FFFFFF', this._buildFont(17, true));
-    core.strokeRect('ui', x - w / 2, y + 15, w, h, cho ? strokeColor : '#FFFFFF', cho ? 3 : 1);
+    core.fillText('ui', title, x, y, highLight ? globalAttribute.selectColor : '#5C3A21', this._buildFont(17, true));
+    core.strokeRect('ui', x - w / 2, y + 15, w, h, cho ? strokeColor : '#5C3A21', cho ? 3 : 1);
     if (data && data.floorId) {
         core.setTextAlign('ui', "center");
         var map = core.maps.loadMap(data.maps, data.floorId);
@@ -3060,7 +3060,7 @@ ui.prototype._drawSLPanel_drawRecord = function (title, data, x, y, size, cho, h
         });
         if (core.isPlaying() && core.getFlag("hard") != data.hero.flags.hard) {
             core.fillRect('ui', x - w / 2, y + 15, w, h, [0, 0, 0, 0.4]);
-            core.fillText('ui', data.hard, x, parseInt(y + 22 + h / 2), data.hero.flags.__hardColor__ || 'white', this._buildFont(30, true));
+            core.fillText('ui', data.hard, x, parseInt(y + 22 + h / 2), data.hero.flags.__hardColor__ || '#5C3A21', this._buildFont(30, true));
         }
         // 绘制存档笔记
         if (data.hero.notes && data.hero.notes.length > 0) {
@@ -3068,13 +3068,13 @@ ui.prototype._drawSLPanel_drawRecord = function (title, data, x, y, size, cho, h
             if (data.hero.notes.length >= 2) {
                 core.fillRect('ui', x - w / 2, y + 15, w, 28, [0, 0, 0, 0.3]);
                 core.fillBoldText('ui', data.hero.notes.length - 1 + ". " + data.hero.notes[data.hero.notes.length - 2].substring(0, 10),
-                    x - w / 2 + 2, y + 15 + 12, '#FFFFFF', null, this._buildFont(10, false));
+                    x - w / 2 + 2, y + 15 + 12, '#5C3A21', null, this._buildFont(10, false));
                 core.fillBoldText('ui', data.hero.notes.length + ". " + data.hero.notes[data.hero.notes.length - 1].substring(0, 10),
                     x - w / 2 + 2, y + 15 + 24);
             } else {
                 core.fillRect('ui', x - w / 2, y + 15, w, 16, [0, 0, 0, 0.3]);
                 core.fillBoldText('ui', data.hero.notes.length + ". " + data.hero.notes[data.hero.notes.length - 1].substring(0, 10),
-                    x - w / 2 + 2, y + 15 + 12, '#FFFFFF', null, this._buildFont(10, false));
+                    x - w / 2 + 2, y + 15 + 12, '#5C3A21', null, this._buildFont(10, false));
             }
         }
         core.setTextAlign('ui', "center");
@@ -3082,11 +3082,11 @@ ui.prototype._drawSLPanel_drawRecord = function (title, data, x, y, size, cho, h
         var v2 = "/" + core.formatBigNumber(data.hero.mdef, true);
         if (core.calWidth('ui', v + v2, this._buildFont(10, false)) <= w) v += v2;
         core.fillText('ui', v, x, y + 30 + h, globalAttribute.selectColor);
-        core.fillText('ui', core.formatDate(new Date(data.time)), x, y + 43 + h, data.hero.flags.debug ? '#FF6A6A' : '#FFFFFF');
+        core.fillText('ui', core.formatDate(new Date(data.time)), x, y + 43 + h, data.hero.flags.debug ? '#FF6A6A' : '#5C3A21');
     }
     else {
         core.fillRect('ui', x - w / 2, y + 15, w, h, '#333333');
-        core.fillText('ui', '空', x, parseInt(y + 22 + h / 2), '#FFFFFF', this._buildFont(30, true));
+        core.fillText('ui', '空', x, parseInt(y + 22 + h / 2), '#5C3A21', this._buildFont(30, true));
     }
 }
 
@@ -3156,7 +3156,7 @@ ui.prototype._drawKeyBoard = function () {
         now += 32;
     });
 
-    core.fillText("ui", "返回游戏", core._PX_ / 2 + 128 + offset, now - 3, '#FFFFFF', this._buildFont(15, true));
+    core.fillText("ui", "返回游戏", core._PX_ / 2 + 128 + offset, now - 3, '#5C3A21', this._buildFont(15, true));
 
     if (isWindowSkin)
         this._drawWindowSelector(core.status.textAttribute.background, core._PX_ / 2 + 92 + offset, now - 22, 72, 27);
@@ -3355,7 +3355,7 @@ ui.prototype._drawHelp = function () {
         core.status.event.id = 'help';
         core.lockControl();
         core.setAlpha('ui', 1);
-        core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#000000');
+        core.fillRect('ui', 0, 0, core._PX_, core._PY_, '#FFFFFF');
         core.drawImage('ui', core.material.images.keyboard, 0, 0);
     }
     else {
