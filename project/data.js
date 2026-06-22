@@ -148,7 +148,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		]
 	},
 	"firstData": {
-		"title": "",
+		"title": "魔塔样板",
 		"name": "template",
 		"version": "Ver 2.10.3",
 		"floorId": "sample0",
