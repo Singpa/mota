@@ -152,6 +152,19 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		"name": "template",
 		"version": "Ver 2.10.3",
 		"floorId": "sample0",
+		"textAttribute": {
+                  "position": "bottom",
+                  "offset": 0,
+                  "title": [140, 75, 86, 1],
+                  "background": [0, 0, 0, 0],
+                  "text": [92, 58, 33, 1],
+                  "titlefont": 22,
+                  "textfont": 16,
+                  "bold": false,
+                  "time": 15,
+                  "letterSpacing": 0,
+                  "animateTime": 150
+               },
 		"hero": {
 			"image": "hero.png",
 			"animate": false,

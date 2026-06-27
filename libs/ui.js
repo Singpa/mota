@@ -1094,7 +1094,7 @@ ui.prototype.drawTextContent = function (ctx, content, config) {
     config.left = config.left || 0;
     config.right = config.left + (config.maxWidth == null ? core._PX_ : config.maxWidth);
     config.top = config.top || 0;
-    config.color = core.arrayToRGBA(config.color || textAttribute.text);
+    config.color = '#5D576B';
     if (config.bold == null) config.bold = textAttribute.bold;
     config.italic = config.italic || false;
     config.align = config.align || textAttribute.align || "left";
@@ -1604,8 +1604,8 @@ ui.prototype._drawTextBox_drawTitleAndIcon = function (titleInfo, hPos, vPos, al
         var titlefont = textAttribute.titlefont;
         content_top += titlefont + 5;
         image_top = vPos.top + 40;
-        core.setFillStyle(ctx, core.arrayToRGB(textAttribute.title));
-        core.setStrokeStyle(ctx, core.arrayToRGB(textAttribute.title));
+      core.setFillStyle(ctx, '#8C4B56'); // 强制标题显示为深草莓粉色
+              core.setStrokeStyle(ctx, '#8C4B56');
 
         // --- title也要居中或者右对齐？
         var title_width = core.calWidth(ctx, titleInfo.title, this._buildFont(titlefont, true));
